@@ -156,10 +156,10 @@ int main(int argc, char *argv[])
         typedef websocketpp::lib::shared_ptr<websocketpp::lib::thread> thread_ptr;
         std::vector<thread_ptr> s_ts, c_ts;
         for (auto i = 0; i < server_threads; i++) {
-            s_ts.push_back(websocketpp::lib::make_shared<websocketpp::lib::thread>([&](){server_io_service.run(); std::cout << "s t\n";}));
+            s_ts.push_back(websocketpp::lib::make_shared<websocketpp::lib::thread>([&](){server_io_service.run(); std::cout << "server thread returned\n";}));
         }
         for (auto i = 0; i < client_threads; i++) {
-            c_ts.push_back(websocketpp::lib::make_shared<websocketpp::lib::thread>([&](){client_io_service.run(); std::cout << "c t\n";}));
+            c_ts.push_back(websocketpp::lib::make_shared<websocketpp::lib::thread>([&](){client_io_service.run(); std::cout << "client thread returned\n";}));
         }
         for (auto i : s_ts) {
             i->join();
