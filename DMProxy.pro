@@ -6,7 +6,7 @@ CONFIG -= qt
 SOURCES += \
     main.cpp
 
-LIBS += -lboost_thread -lboost_system -lpthread
+LIBS += -lboost_thread -lboost_system -lboost_program_options -lpthread
 
 DISTFILES += \
     LICENSE
