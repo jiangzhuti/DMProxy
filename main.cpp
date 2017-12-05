@@ -5,6 +5,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <memory>
 #include <boost/program_options.hpp>
 
 using websocketpp::lib::bind;
@@ -47,24 +48,27 @@ typedef websocketpp::server<dmproxy_config> server;
 typedef websocketpp::client<websocketpp::config::asio_client> client;
 typedef server::message_ptr message_ptr;
 
+//use 'static' to prevent clang for generating -Wmissing-variable-declarations warnings
+static int server_threads, client_threads;
+static int server_port;
+static std::string uri;
 
-int server_threads, client_threads;
-int server_port;
-std::string uri;
+static server dmp_server;
+static websocketpp::lib::asio::io_service server_io_service;
+static websocketpp::lib::asio::io_service client_io_service;
 
-server dmp_server;
-websocketpp::lib::asio::io_service server_io_service;
-websocketpp::lib::asio::io_service client_io_service;
+static std::map<uint64_t, client *> room_client;
 
-std::map<uint64_t, client *> room_client;
-std::map<server::connection_ptr, client *> conn_client;
-std::map<client *, std::set<server::connection_ptr>> client_conns;
+//use std::owner_less to compare weak_ptr
+//see https://stackoverflow.com/questions/33445976/is-it-safe-to-store-a-changing-object-in-a-stl-set/
+static std::map<websocketpp::connection_hdl, client *, std::owner_less<websocketpp::connection_hdl>> conn_client;
+static std::map<client *, std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl>>> client_conns;
 
 void on_client_message(client* c, websocketpp::connection_hdl hdl, message_ptr msg)
 {
     auto conns = client_conns[c];
     for (auto i : conns) {
-        dmp_server.send(i->get_handle(), msg->get_payload(), msg->get_opcode());
+        dmp_server.send(i, msg->get_payload(), msg->get_opcode());
     }
 }
 
@@ -82,32 +86,31 @@ void on_server_message(server* s, websocketpp::connection_hdl hdl, message_ptr m
         sstream << payload;
         sstream >> roomid;
         client *c, *old_c = nullptr;
-        server::connection_ptr s_conn = s->get_con_from_hdl(hdl);
-        client::connection_ptr c_conn;
         if (room_client.count(roomid) == 0) {
             c = new client();
             c->init_asio(&client_io_service);
             c->set_message_handler(bind(on_client_message, c, _1, _2));
             c->set_open_handler(bind(on_client_open, c, payload, opcode, _1));
             websocketpp::lib::error_code ec;
+            client::connection_ptr c_conn;
             c_conn = c->get_connection(uri, ec);
             if (ec) {
                 std::cout << "Could not create connection because:" << ec.message() << std::endl;
             }
             c->connect(c_conn);
             room_client[roomid] = c;
-            client_conns[c] = std::set<server::connection_ptr>();
+            client_conns[c] = std::set<websocketpp::connection_hdl, std::owner_less<websocketpp::connection_hdl>>();
         } else {
             c = room_client[roomid];
         }
-        if (conn_client.count(s_conn) != 0) {
-            old_c = conn_client[s_conn];
+        if (conn_client.count(hdl) != 0) {
+            old_c = conn_client[hdl];
         }
-        conn_client[s_conn] = c;
+        conn_client[hdl] = c;
         if (old_c != nullptr) {
-            client_conns[old_c].erase(s_conn);
+            client_conns[old_c].erase(hdl);
         }
-        client_conns[c].insert(s_conn);
+        client_conns[c].insert(hdl);
     }
 }
 
