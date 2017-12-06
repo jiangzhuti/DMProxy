@@ -1,12 +1,8 @@
 #ifndef PARSE_PACK_HPP
 #define PARSE_PACK_HPP
 
-
-#include <cstdio>
-
 #include "protocol/ChatRoom.pb.h"
 #include "protocol/CommunicationData.pb.h"
-
 
 void HandleBinaryMessage(const void* data, int size);
 void parse_service_resp(const qihoo::protocol::messages::Message& message);

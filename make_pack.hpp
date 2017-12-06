@@ -6,40 +6,17 @@
 
 #include <string>
 #include <cstdio>
-#include <openssl/md5.h>
 #include <cstdint>
 #include <algorithm>
 #include <random>
 
 #include "global.hpp"
+#include "utils/md5.hpp"
 
-const char HEX_NUMBERS[16] = {
-  '0', '1', '2', '3',
-  '4', '5', '6', '7',
-  '8', '9', 'a', 'b',
-  'c', 'd', 'e', 'f'
-};
-
-void md5_str(const std::string& text, std::string *output)
-{
-    uint8_t digest[16];
-    MD5(reinterpret_cast<const unsigned char *>(text.data()), text.length(), digest);
-    output->clear();
-    output->reserve(16 << 1);
-    for (size_t i = 0; i < 16; ++i) {
-        int t = digest[i];
-        int a = t / 16;
-        int b = t % 16;
-        output->append(1, HEX_NUMBERS[a]);
-        output->append(1, HEX_NUMBERS[b]);
-    }
-}
-
-inline void make_verf_code(const std::string& text, std::string *output)
+inline std::string make_verf_code(const std::string& text)
 {
     std::string buf(text + "360tantan@1408$");
-    md5_str(buf, output);
-    *output = output->substr(24, 8);
+    return md5_str(buf).substr(24, 8);
 }
 
 void print_hex(const char *str, size_t len)
