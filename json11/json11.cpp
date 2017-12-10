@@ -786,4 +786,3 @@ bool Json::has_shape(const shape & types, string & err) const {
 }
 
 } // namespace json11
-

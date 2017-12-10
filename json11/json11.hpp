@@ -230,4 +230,3 @@ protected:
 };
 
 } // namespace json11
-

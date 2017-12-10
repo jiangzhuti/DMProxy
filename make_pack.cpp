@@ -1,8 +1,31 @@
 #include "make_pack.hpp"
 
+#include "utils/rc4.hpp"
+#include <iostream>
 #include <sstream>
+#include <vector>
+#include "utils/others.hpp"
 
-void new_request_message(PACKET_TYPE msgid, void* req_object, qihoo::protocol::messages::Message* message)
+inline std::string make_verf_code(const std::string& text)
+{
+    std::string buf(text + "360tantan@1408$");
+    return md5_str(buf).substr(24, 8);
+}
+
+void print_hex(const char* str, size_t len)
+{
+    for (size_t i = 0; i < len; ++i)
+        printf("%02X", str[i]);
+    printf("\n");
+}
+
+uint32_t swap_uint32(uint32_t value)
+{
+    return ((value & 0x000000FF) << 24) | ((value & 0x0000FF00) << 8) | ((value & 0x00FF0000) >> 8) | ((value & 0xFF000000) >> 24);
+}
+
+void new_request_message(PACKET_TYPE msgid, void* req_object,
+    qihoo::protocol::messages::Message* message)
 {
     message->set_msgid(msgid);
     message->set_sn(g_user_info.sn);
@@ -13,25 +36,34 @@ void new_request_message(PACKET_TYPE msgid, void* req_object, qihoo::protocol::m
 
     switch (msgid) {
     case LoginReq:
-        req->set_allocated_login(reinterpret_cast<qihoo::protocol::messages::LoginReq*>(req_object));
+        req->set_allocated_login(
+            reinterpret_cast<qihoo::protocol::messages::LoginReq*>(req_object));
         break;
     case ChatReq:
-        req->set_allocated_chat(reinterpret_cast<qihoo::protocol::messages::ChatReq*>(req_object));
+        req->set_allocated_chat(
+            reinterpret_cast<qihoo::protocol::messages::ChatReq*>(req_object));
         break;
     case GetInfoReq:
-        req->set_allocated_get_info(reinterpret_cast<qihoo::protocol::messages::GetInfoReq*>(req_object));
+        req->set_allocated_get_info(
+            reinterpret_cast<qihoo::protocol::messages::GetInfoReq*>(req_object));
         break;
     case LogoutReq:
-        req->set_allocated_logout(reinterpret_cast<qihoo::protocol::messages::LogoutReq*>(req_object));
+        req->set_allocated_logout(
+            reinterpret_cast<qihoo::protocol::messages::LogoutReq*>(req_object));
         break;
     case InitLoginReq:
-        req->set_allocated_init_login_req(reinterpret_cast<qihoo::protocol::messages::InitLoginReq*>(req_object));
+        req->set_allocated_init_login_req(
+            reinterpret_cast<qihoo::protocol::messages::InitLoginReq*>(
+                req_object));
         break;
     case Service_Req:
-        req->set_allocated_service_req(reinterpret_cast<qihoo::protocol::messages::Service_Req*>(req_object));
+        req->set_allocated_service_req(
+            reinterpret_cast<qihoo::protocol::messages::Service_Req*>(req_object));
         break;
     case Ex1QueryUserStatusReq:
-        req->set_allocated_e1_query_user(reinterpret_cast<qihoo::protocol::messages::Ex1QueryUserStatusReq*>(req_object));
+        req->set_allocated_e1_query_user(
+            reinterpret_cast<qihoo::protocol::messages::Ex1QueryUserStatusReq*>(
+                req_object));
         break;
     case RestoreSessionReq:
         break;
@@ -56,7 +88,7 @@ void new_request_message(PACKET_TYPE msgid, void* req_object, qihoo::protocol::m
     message->set_allocated_req(req);
 }
 
-std::string new_hand_shake_pack()
+std::vector<uint8_t> new_hand_shake_pack()
 {
     auto* init_login_req = new qihoo::protocol::messages::InitLoginReq();
     init_login_req->set_client_ram(g_user_info.client_ram);
@@ -70,39 +102,39 @@ std::string new_hand_shake_pack()
     std::cout << "\n[HandshakePack] packet = ";
     print_hex(msgc.c_str(), msg.ByteSizeLong());
 
-    std::string out_result;
-    rc4_xx(msgc, g_config.defaultKey, &out_result);
-
     char szHeader[12] = { 113, 104, 16, 101, 8, 32, 0, 0, 0, 0, 0, 0 };
 
-    uint32_t length = uint32_t(out_result.length() + 12 + 4);
+    uint32_t length = uint32_t(msgc.length() + 12 + 4);
     uint32_t ulength = swap_uint32(length);
 
-    std::stringstream mystream;
-    mystream.write(szHeader, 12);
-    mystream.write((char*)&ulength, 4);
-    mystream.write(out_result.c_str(), out_result.length());
-
-    std::string result = mystream.str();
+    std::vector<uint8_t> result(length);
+    rc4_ptr(reinterpret_cast<const uint8_t*>(msgc.data()), msgc.length(),
+        reinterpret_cast<const uint8_t*>(g_config.defaultKey.data()),
+        g_config.defaultKey.length(), result.data() + 12 + 4);
+    memcpy(result.data(), szHeader, 12);
+    memcpy(result.data() + 12, &ulength, 4);
 
     std::cout << "[HandshakePack] encrypt packet = ";
-    print_hex(result.c_str(), result.length());
+    print_hex((const char*)result.data(), result.size());
 
     return result;
 }
 
-std::string new_login_pack()
+std::vector<uint8_t> new_login_pack()
 {
     auto* login = new qihoo::protocol::messages::LoginReq();
     login->set_app_id(g_config.appId);
     login->set_server_ram(g_user_info.server_ram);
 
     std::stringstream secret_ram_stream;
-    secret_ram_stream.write(g_user_info.server_ram.c_str(), g_user_info.server_ram.length());
+    secret_ram_stream.write(g_user_info.server_ram.c_str(),
+        g_user_info.server_ram.length());
     secret_ram_stream.write(random_string(8).c_str(), 8);
 
-    std::string secret_ram;
-    rc4_xx(secret_ram_stream.str(), g_user_info.password, &secret_ram);
+    std::string secret_ram = rc4_str((const uint8_t*)secret_ram_stream.str().data(),
+        secret_ram_stream.str().length(),
+        (const uint8_t*)g_user_info.password.data(),
+        g_user_info.password.length());
     login->set_secret_ram(secret_ram);
 
     std::string verf_code = make_verf_code(g_user_info.userid);
@@ -121,25 +153,23 @@ std::string new_login_pack()
     std::cout << "\n[LoginReq] packet = ";
     print_hex(msgc.c_str(), msg.ByteSizeLong());
 
-    std::string out_result;
-    rc4_xx(msgc, g_config.defaultKey, &out_result);
-
-    uint32_t length = out_result.length() + 4;
+    uint32_t length = msgc.length() + 4;
     uint32_t ulength = swap_uint32(length);
+    std::vector<uint8_t> result(length);
+    rc4_ptr((const uint8_t*)msgc.data(), msgc.length(),
+        (const uint8_t*)g_config.defaultKey.data(),
+        g_config.defaultKey.length(), result.data() + 4);
 
-    std::stringstream mystream;
-    mystream.write((char*)&ulength, 4);
-    mystream.write(out_result.c_str(), out_result.length());
-    std::string result = mystream.str();
+    memcpy(result.data(), &ulength, 4);
 
     std::cout << "[LoginReq] encrypt packet = ";
-    print_hex(result.c_str(), result.length());
+    print_hex((char*)result.data(), result.size());
 
     return result;
 }
 
 //_sendJoinChatroomPack
-std::string new_join_chat_room_pack()
+std::vector<uint8_t> new_join_chat_room_pack()
 {
     auto* room = new qihoo::protocol::chatroom::ChatRoom();
     room->set_roomid(g_user_info.roomId);
@@ -160,6 +190,7 @@ std::string new_join_chat_room_pack()
 
     packet->set_client_sn(g_user_info.sn);
     packet->set_roomid(g_user_info.roomId);
+    std::cout << g_user_info.roomId << ":222" << std::endl;;
     packet->set_appid(g_config.appId);
     packet->set_allocated_to_server_data(to_server_data);
 
@@ -178,13 +209,12 @@ std::string new_join_chat_room_pack()
     uint32_t length = msg.ByteSizeLong() + 4;
     uint32_t ulength = swap_uint32(length);
 
-    std::stringstream mystream;
-    mystream.write((char*)&ulength, 4);
-    mystream.write(msgc.c_str(), msgc.length());
-    std::string result = mystream.str();
+    std::vector<uint8_t> result(length);
+    memcpy(result.data(), &ulength, 4);
+    memcpy(result.data() + 4, msgc.data(), msgc.length());
 
     std::cout << "[Service_Req] encrypt packet = ";
-    print_hex(result.c_str(), (int)result.length());
+    print_hex((char *)result.data(), result.size());
 
     return result;
 }
