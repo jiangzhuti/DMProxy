@@ -14,6 +14,7 @@
 #include <boost/bimap/multiset_of.hpp>
 #include <boost/bimap/vector_of.hpp>
 #include <boost/bimap/tags/tagged.hpp>
+#include <boost/thread.hpp>
 #include "make_pack.hpp"
 #include "parse_pack.hpp"
 #include "utils/others.hpp"
@@ -66,20 +67,36 @@ using namespace boost::bimaps; //这个组合起来实在是太长
 struct tag_roomid{};
 struct tag_c_conn{};
 struct tag_s_conn{};
+//1.
 //use std::owner_less to compare connection_hdl (aka weak_ptr)
 //see https://stackoverflow.com/questions/33445976/is-it-safe-to-store-a-changing-object-in-a-stl-set/
-//weak_ptr also has no hash function, see https://stackoverflow.com/questions/4750504/why-was-stdhash-not-defined-for-stdweak-ptr-in-c0x
+//2.
+//weak_ptr also has no hash function, so do not use in unordered map/set
+//see https://stackoverflow.com/questions/4750504/why-was-stdhash-not-defined-for-stdweak-ptr-in-c0x
+//3.
+//STL Containers are thread-safe for concurrent read, so need a rw lock
+//see https://stackoverflow.com/questions/7455982/is-stl-vector-concurrent-read-thread-safe
+//4.
+//there is no standard way to use rw lock in c++11
+//so use boost::shared_mutex to implement it
+//5. lock order: rc->cs->ci
+typedef boost::shared_mutex rw_mutex_t;
+typedef boost::shared_lock<boost::shared_mutex> rlock_t;
+typedef boost::unique_lock<boost::shared_mutex> wlock_t;
+
 typedef boost::bimap<
                      unordered_set_of<tagged<uint64_t, struct tag_roomid>>,
                      set_of<tagged<connection_hdl, struct tag_c_conn>, std::owner_less<connection_hdl>>
                     > roomid_conn_bm;
 static roomid_conn_bm rc_bm;
+static rw_mutex_t rc_rw_mtx;
 
 typedef boost::bimap<
                      multiset_of<tagged<websocketpp::connection_hdl, struct tag_c_conn>, std::owner_less<websocketpp::connection_hdl>>, //client conn
                      set_of<tagged<websocketpp::connection_hdl, struct tag_s_conn>, std::owner_less<websocketpp::connection_hdl>> //server_conns
                     > client_server_conn_bm;
 static client_server_conn_bm cs_bm;
+static rw_mutex_t cs_rw_mtx;
 
 typedef std::map<
                  connection_hdl,
@@ -87,52 +104,65 @@ typedef std::map<
                  std::owner_less<websocketpp::connection_hdl>
                 > conn_info_map;
 static conn_info_map ci_map;
+static rw_mutex_t ci_rw_mtx;
 
 using websocketpp::lib::bind;
 
 namespace po = boost::program_options;
 
-
 #define PRINT_ERROR(ec) \
     std::cerr << __func__ << ":" << __LINE__ << " error occured because: " << ec.message() << std::endl;
 
-void on_client_message(websocketpp::connection_hdl hdl, message_ptr msg)
+//only use read lock
+void on_client_message(uint64_t roomid, websocketpp::connection_hdl hdl, message_ptr msg)
 {
     websocketpp::lib::error_code ec;
-    conn_info_t &ci = ci_map[hdl];
-    std::string dm_msg = HandleBinaryMessage(msg->get_payload().data(), msg->get_payload().length(), ci);
-    if (ci.handshake && !ci.bLogin) {
-        std::vector<uint8_t> loginpacket = new_login_pack(ci);
-        dmp_client.send(hdl, loginpacket.data(), loginpacket.size(), websocketpp::frame::opcode::BINARY, ec);
-        if (ec) {
-            PRINT_ERROR(ec)
+    std::string dm_msg;
+    {
+        rlock_t ci_rlock(ci_rw_mtx);
+        conn_info_t& ci = ci_map[hdl];
+        dm_msg = HandleBinaryMessage(msg->get_payload().data(), msg->get_payload().length(), ci);
+        if (ci.handshake && !ci.bLogin) {
+            std::vector<uint8_t> loginpacket = new_login_pack(ci);
+            dmp_client.send(hdl, loginpacket.data(), loginpacket.size(), websocketpp::frame::opcode::BINARY, ec);
+            if (ec) {
+                PRINT_ERROR(ec)
+            }
+            return;
+        }
+        if (ci.handshake && ci.bLogin && ci.roomId.empty()) {
+            std::stringstream sstream;
+            sstream << roomid;
+            sstream >> ci.roomId;
+            std::vector<uint8_t> jcpacket = new_join_chat_room_pack(ci);
+            dmp_client.send(hdl, jcpacket.data(), jcpacket.size(), websocketpp::frame::opcode::BINARY, ec);
+            if (ec) {
+                PRINT_ERROR(ec)
+            }
+            return;
         }
     }
-    if (ci.handshake && ci.bLogin && ci.roomId.empty()) {
-        auto roomid = rc_bm.by<tag_c_conn>().find(hdl)->second;
-        std::stringstream sstream;
-        sstream << roomid;
-        sstream >> ci.roomId;
-        std::vector<uint8_t> jcpacket = new_join_chat_room_pack(ci);
-        dmp_client.send(hdl, jcpacket.data(), jcpacket.size(), websocketpp::frame::opcode::BINARY, ec);
-        if (ec) {
-            PRINT_ERROR(ec)
-        }
-    }
-    auto range = cs_bm.by<tag_c_conn>().equal_range(hdl); //find server conns
-    for (auto conn = range.first; conn != range.second; conn++) {
-        websocketpp::lib::error_code ec;
-        dmp_server.send(conn->second, dm_msg, websocketpp::frame::opcode::TEXT, ec);
-        if (ec) {
-            PRINT_ERROR(ec)
+    {
+        rlock_t cs_rlock(cs_rw_mtx);
+        auto range = cs_bm.by<tag_c_conn>().equal_range(hdl); //find server conns
+        for (auto conn = range.first; conn != range.second; conn++) {
+            websocketpp::lib::error_code ec;
+            dmp_server.send(conn->second, dm_msg, websocketpp::frame::opcode::TEXT, ec);
+            if (ec) {
+                PRINT_ERROR(ec)
+            }
         }
     }
 }
 
 void on_client_open(uint64_t room_id, websocketpp::connection_hdl hdl)
 {
-    conn_info_t &ci = ci_map[hdl];
-    std::vector<uint8_t> hspacket = new_hand_shake_pack(ci);
+    std::vector<uint8_t> hspacket;
+    {
+        rlock_t ci_rlock(ci_rw_mtx);
+        conn_info_t& ci = ci_map[hdl];
+        hspacket = new_hand_shake_pack(ci);
+    }
     websocketpp::lib::error_code ec;
     dmp_client.send(hdl, hspacket.data(), hspacket.size(), websocketpp::frame::opcode::BINARY, ec);
     if (ec) {
@@ -142,6 +172,9 @@ void on_client_open(uint64_t room_id, websocketpp::connection_hdl hdl)
 
 void on_client_close(websocketpp::connection_hdl hdl)
 {
+    wlock_t rc_wlock(rc_rw_mtx);
+    wlock_t cs_wlock(cs_rw_mtx);
+    wlock_t ci_wlock(ci_rw_mtx);
     auto range = cs_bm.by<tag_c_conn>().equal_range(hdl);
     for (auto conn = range.first; conn != range.second; conn++) {
         websocketpp::lib::error_code ec;
@@ -156,10 +189,11 @@ void on_client_close(websocketpp::connection_hdl hdl)
     ci_map.erase(hdl);
 }
 
-void client_conn_close(websocketpp::connection_hdl hdl)
+void client_conn_close_with_check(websocketpp::connection_hdl hdl)
 {
     if (cs_bm.by<tag_c_conn>().count(hdl) == 0) {
         rc_bm.by<tag_c_conn>().erase(hdl);
+        ci_map.erase(hdl);
         websocketpp::lib::error_code ec;
         dmp_client.close(hdl, websocketpp::close::status::normal, std::string("close"), ec);
         if (ec) {
@@ -170,9 +204,12 @@ void client_conn_close(websocketpp::connection_hdl hdl)
 
 void on_server_close(websocketpp::connection_hdl hdl)
 {
+    wlock_t rc_wlock(rc_rw_mtx);
+    wlock_t cs_wlock(cs_rw_mtx);
+    wlock_t ci_wlock(ci_rw_mtx);
     auto c_hdl = cs_bm.by<tag_s_conn>().find(hdl)->second;
     cs_bm.by<tag_s_conn>().erase(hdl);
-    client_conn_close(c_hdl);
+    client_conn_close_with_check(c_hdl);
 }
 
 void on_server_message(websocketpp::connection_hdl hdl, message_ptr msg)
@@ -192,10 +229,13 @@ void on_server_message(websocketpp::connection_hdl hdl, message_ptr msg)
         return;
     }
     websocketpp::connection_hdl c_hdl, old_c_hdl;
+    wlock_t rc_wlock(rc_rw_mtx);
+    wlock_t cs_wlock(cs_rw_mtx);
+    wlock_t ci_wlock(ci_rw_mtx);
     //check if the server conn already bound to a client conn
     if (cs_bm.by<tag_s_conn>().count(hdl) != 0) { //todo. should assert == 1
         //find client conn
-        old_c_hdl = cs_bm.by<tag_s_conn>().find(hdl)->first;
+        old_c_hdl = cs_bm.by<tag_s_conn>().find(hdl)->second;
         //if same room id
         if (room_id == rc_bm.by<tag_c_conn>().find(old_c_hdl)->second) {
             //just return
@@ -204,7 +244,7 @@ void on_server_message(websocketpp::connection_hdl hdl, message_ptr msg)
             //1. erase server conn from its client bound
             //2. check if no exist requests to the old room id
             cs_bm.by<tag_s_conn>().erase(hdl);
-            client_conn_close(old_c_hdl);
+            client_conn_close_with_check(old_c_hdl);
         }
     }
     //if new room id exsits
@@ -220,6 +260,7 @@ void on_server_message(websocketpp::connection_hdl hdl, message_ptr msg)
             return;
         }
         c_conn->set_open_handler(bind(on_client_open, room_id, websocketpp::lib::placeholders::_1));
+        c_conn->set_message_handler(bind(on_client_message, room_id, websocketpp::lib::placeholders::_1, websocketpp::lib::placeholders::_2));
         dmp_client.connect(c_conn);
         c_hdl = c_conn->get_handle();
         rc_bm.by<tag_roomid>().insert(std::make_pair(room_id, c_hdl));
@@ -276,7 +317,6 @@ int main(int argc, char *argv[])
         dmp_client.clear_access_channels(websocketpp::log::alevel::all);
         dmp_client.clear_error_channels(websocketpp::log::alevel::all);
         dmp_client.init_asio(&client_io_service);
-        dmp_client.set_message_handler(on_client_message);
         dmp_client.set_close_handler(on_client_close);
 
 

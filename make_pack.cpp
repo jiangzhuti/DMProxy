@@ -189,7 +189,6 @@ std::vector<uint8_t> new_join_chat_room_pack(conn_info_t &ci)
 
     packet->set_client_sn(ci.sn);
     packet->set_roomid(ci.roomId);
-    std::cout << ci.roomId << ":222" << std::endl;;
     packet->set_appid(g_config.appId);
     packet->set_allocated_to_server_data(to_server_data);
 
