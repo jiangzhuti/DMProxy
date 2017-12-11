@@ -18,13 +18,6 @@
 #include "parse_pack.hpp"
 #include "utils/others.hpp"
 
-using websocketpp::lib::bind;
-using websocketpp::lib::placeholders::_1;
-using websocketpp::lib::placeholders::_2;
-using websocketpp::lib::placeholders::_3;
-
-namespace po = boost::program_options;
-
 struct dmproxy_config : public websocketpp::config::asio {
     // pull default settings from our core config
     typedef websocketpp::config::asio core;
@@ -75,6 +68,7 @@ struct tag_c_conn{};
 struct tag_s_conn{};
 //use std::owner_less to compare connection_hdl (aka weak_ptr)
 //see https://stackoverflow.com/questions/33445976/is-it-safe-to-store-a-changing-object-in-a-stl-set/
+//weak_ptr also has no hash function, see https://stackoverflow.com/questions/4750504/why-was-stdhash-not-defined-for-stdweak-ptr-in-c0x
 typedef boost::bimap<
                      unordered_set_of<tagged<uint64_t, struct tag_roomid>>,
                      set_of<tagged<connection_hdl, struct tag_c_conn>, std::owner_less<connection_hdl>>
@@ -87,27 +81,39 @@ typedef boost::bimap<
                     > client_server_conn_bm;
 static client_server_conn_bm cs_bm;
 
+typedef std::map<
+                 connection_hdl,
+                 conn_info_t,
+                 std::owner_less<websocketpp::connection_hdl>
+                > conn_info_map;
+static conn_info_map ci_map;
+
+using websocketpp::lib::bind;
+
+namespace po = boost::program_options;
+
+
 #define PRINT_ERROR(ec) \
-    std::cerr << __func__ << ":" << __LINE__ << " send() failed because: " << ec.message() << std::endl;
+    std::cerr << __func__ << ":" << __LINE__ << " error occured because: " << ec.message() << std::endl;
 
 void on_client_message(websocketpp::connection_hdl hdl, message_ptr msg)
 {
     websocketpp::lib::error_code ec;
-    std::string dm_msg = HandleBinaryMessage(msg->get_payload().data(), msg->get_payload().length());
-    if (g_user_info.handshake && !g_user_info.bLogin) {
-        std::vector<uint8_t> loginpacket = new_login_pack();
+    conn_info_t &ci = ci_map[hdl];
+    std::string dm_msg = HandleBinaryMessage(msg->get_payload().data(), msg->get_payload().length(), ci);
+    if (ci.handshake && !ci.bLogin) {
+        std::vector<uint8_t> loginpacket = new_login_pack(ci);
         dmp_client.send(hdl, loginpacket.data(), loginpacket.size(), websocketpp::frame::opcode::BINARY, ec);
         if (ec) {
             PRINT_ERROR(ec)
         }
     }
-    if (g_user_info.handshake && g_user_info.bLogin && g_user_info.roomId.empty()) {
+    if (ci.handshake && ci.bLogin && ci.roomId.empty()) {
         auto roomid = rc_bm.by<tag_c_conn>().find(hdl)->second;
-        std::cout << "ROOMID:" << roomid << std::endl;
         std::stringstream sstream;
         sstream << roomid;
-        sstream >> g_user_info.roomId;
-        std::vector<uint8_t> jcpacket = new_join_chat_room_pack();
+        sstream >> ci.roomId;
+        std::vector<uint8_t> jcpacket = new_join_chat_room_pack(ci);
         dmp_client.send(hdl, jcpacket.data(), jcpacket.size(), websocketpp::frame::opcode::BINARY, ec);
         if (ec) {
             PRINT_ERROR(ec)
@@ -125,7 +131,8 @@ void on_client_message(websocketpp::connection_hdl hdl, message_ptr msg)
 
 void on_client_open(uint64_t room_id, websocketpp::connection_hdl hdl)
 {
-    std::vector<uint8_t> hspacket = new_hand_shake_pack();
+    conn_info_t &ci = ci_map[hdl];
+    std::vector<uint8_t> hspacket = new_hand_shake_pack(ci);
     websocketpp::lib::error_code ec;
     dmp_client.send(hdl, hspacket.data(), hspacket.size(), websocketpp::frame::opcode::BINARY, ec);
     if (ec) {
@@ -146,6 +153,7 @@ void on_client_close(websocketpp::connection_hdl hdl)
     }
     cs_bm.by<tag_c_conn>().erase(hdl);
     rc_bm.by<tag_c_conn>().erase(hdl);
+    ci_map.erase(hdl);
 }
 
 void client_conn_close(websocketpp::connection_hdl hdl)
@@ -162,7 +170,7 @@ void client_conn_close(websocketpp::connection_hdl hdl)
 
 void on_server_close(websocketpp::connection_hdl hdl)
 {
-    auto c_hdl = cs_bm.by<tag_s_conn>().find(hdl)->first;
+    auto c_hdl = cs_bm.by<tag_s_conn>().find(hdl)->second;
     cs_bm.by<tag_s_conn>().erase(hdl);
     client_conn_close(c_hdl);
 }
@@ -215,6 +223,7 @@ void on_server_message(websocketpp::connection_hdl hdl, message_ptr msg)
         dmp_client.connect(c_conn);
         c_hdl = c_conn->get_handle();
         rc_bm.by<tag_roomid>().insert(std::make_pair(room_id, c_hdl));
+        ci_map[c_hdl] = conn_info_t();
     }
     //bind server conn to client conn
     cs_bm.by<tag_c_conn>().insert(std::make_pair(c_hdl, hdl));
@@ -247,12 +256,6 @@ int main(int argc, char *argv[])
         ss << "ws://" << dmip << ":" << dmport;
         ss >> uri;
     }
-    g_user_info.userid      = "688961111731502278921563";
-    g_user_info.sender      = "688961111731502278921563";
-    g_user_info.password    = "688961111731502278921563";
-    g_user_info.client_ram  = random_string(10);
-    g_user_info.sn          = random_number(10);
-    g_user_info.handshake   = g_user_info.bLogin = false;
 
     try {
         dmp_server.clear_access_channels(websocketpp::log::alevel::all);

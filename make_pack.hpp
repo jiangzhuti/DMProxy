@@ -13,15 +13,15 @@
 #include "utils/md5.hpp"
 
 
-void new_request_message(PACKET_TYPE msgid, void* req_object, qihoo::protocol::messages::Message* message);
+void new_request_message(PACKET_TYPE msgid, void* req_object, qihoo::protocol::messages::Message* message, conn_info_t &ci);
 
 //_sendHandshakePack
-std::vector<uint8_t> new_hand_shake_pack();
+std::vector<uint8_t> new_hand_shake_pack(conn_info_t &ci);
 
 //_sendLoginPack
-std::vector<uint8_t> new_login_pack();
+std::vector<uint8_t> new_login_pack(conn_info_t &ci);
 
 //_sendJoinChatroomPack
-std::vector<uint8_t> new_join_chat_room_pack();
+std::vector<uint8_t> new_join_chat_room_pack(conn_info_t &ci);
 
 #endif // MAKE_PACK_HPP

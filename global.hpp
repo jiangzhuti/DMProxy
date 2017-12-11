@@ -2,6 +2,7 @@
 #define GLOBAL_HPP
 
 #include <string>
+#include <utils/others.hpp>
 
 enum PACKET_TYPE
 {
@@ -87,7 +88,7 @@ struct GlobalConfig
     int timeout = 20000;
 };
 
-struct UserInfo
+struct conn_info_t
 {
     std::string userid;
     std::string password;
@@ -101,10 +102,17 @@ struct UserInfo
     std::string	session;//session_key
     bool        bLogin;
     time_t		sn;
+
+    conn_info_t():userid("688961111731502278921563"),
+               password("688961111731502278921563"),
+               sender("688961111731502278921563"),
+               handshake(false),
+               client_ram(random_string(10)),
+               bLogin(false),
+               sn(random_number(10))
+    {}
 };
 
 extern  GlobalConfig    g_config;
-extern  UserInfo        g_user_info;
-
 
 #endif // GLOBAL_HPP

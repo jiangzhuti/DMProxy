@@ -9,21 +9,21 @@
 #include <iostream>
 #include <sstream>
 
-std::string HandleBinaryMessage(const void* data, uint32_t size)
+std::string HandleBinaryMessage(const void* data, uint32_t size, conn_info_t &ci)
 {
-    if (g_user_info.handshake) {
-        if (g_user_info.bLogin) {
-            return parse_message_pack(data, size);
+    if (ci.handshake) {
+        if (ci.bLogin) {
+            return parse_message_pack(data, size, ci);
         } else {
-            return parse_longin_response_pack(data, size);
+            return parse_longin_response_pack(data, size, ci);
         }
     } else {
-        return parse_hand_shake_pack(data, size);
+        return parse_hand_shake_pack(data, size, ci);
     }
 }
 
 //_processMessagePack
-std::string parse_message_pack(const void* data, uint32_t size)
+std::string parse_message_pack(const void* data, uint32_t size, conn_info_t &ci)
 {
     std::string dm_msg;
     std::stringstream sstream;
@@ -38,7 +38,7 @@ std::string parse_message_pack(const void* data, uint32_t size)
 
         switch (message.msgid()) {
         case LoginResp:
-            dm_msg.append(parse_longin_response_pack(data, size));
+            dm_msg.append(parse_longin_response_pack(data, size, ci));
             break;
         case Service_Resp:
             dm_msg.append(parse_service_resp(message));
@@ -254,7 +254,7 @@ void parse_chat_room_new_message(const void* data, uint32_t size, qihoo::protoco
 }
 
 //_processHandShakePack
-std::string parse_hand_shake_pack(const void* data, uint32_t size)
+std::string parse_hand_shake_pack(const void* data, uint32_t size, conn_info_t &ci)
 {
     uint32_t length = size - 6;
     std::stringstream sstream;
@@ -271,9 +271,9 @@ std::string parse_hand_shake_pack(const void* data, uint32_t size)
         sstream << "server_ram       = " << response.server_ram() << std::endl;
         sstream << "client_ram       = " << response.client_ram() << std::endl;
 
-        g_user_info.server_ram = response.server_ram();
-        g_user_info.client_ram = response.client_ram();
-        g_user_info.handshake = true;
+        ci.server_ram = response.server_ram();
+        ci.client_ram = response.client_ram();
+        ci.handshake = true;
     } else {
         sstream << "[Unpacket Error] response msgid exception,msgid = " << message.msgid() << std::endl;
     }
@@ -281,12 +281,12 @@ std::string parse_hand_shake_pack(const void* data, uint32_t size)
 }
 
 //_processLoginPack
-std::string parse_longin_response_pack(const void* data, uint32_t size)
+std::string parse_longin_response_pack(const void* data, uint32_t size, conn_info_t &ci)
 {
     uint32_t length = size - 4;
     std::stringstream sstream;
 
-    std::vector<uint8_t> out_result = rc4_vector((const uint8_t*)data + 4, length, reinterpret_cast<const uint8_t*>(g_user_info.password.data()), g_user_info.password.length());
+    std::vector<uint8_t> out_result = rc4_vector((const uint8_t*)data + 4, length, reinterpret_cast<const uint8_t*>(ci.password.data()), ci.password.length());
     qihoo::protocol::messages::Message message;
     parse_address_book_message(out_result.data(), out_result.size(), &message);
 
@@ -299,8 +299,8 @@ std::string parse_longin_response_pack(const void* data, uint32_t size)
         sstream << "client_login_ip      =   " << login.client_login_ip() << std::endl;
         sstream << "serverip             =   " << login.serverip() << std::endl;
 
-        g_user_info.session = login.session_key();
-        g_user_info.bLogin = true;
+        ci.session = login.session_key();
+        ci.bLogin = true;
     } else {
         sstream << "[Unpacket Error] response msgid exception,msgid = " << message.msgid() << std::endl;
     }

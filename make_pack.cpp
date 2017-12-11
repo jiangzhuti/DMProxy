@@ -25,11 +25,11 @@ uint32_t swap_uint32(uint32_t value)
 }
 
 void new_request_message(PACKET_TYPE msgid, void* req_object,
-    qihoo::protocol::messages::Message* message)
+    qihoo::protocol::messages::Message* message, conn_info_t &ci)
 {
     message->set_msgid(msgid);
-    message->set_sn(g_user_info.sn);
-    message->set_sender(g_user_info.sender);
+    message->set_sn(ci.sn);
+    message->set_sender(ci.sender);
     message->set_sender_type(g_config.senderType);
 
     auto* req = new qihoo::protocol::messages::Request();
@@ -88,14 +88,14 @@ void new_request_message(PACKET_TYPE msgid, void* req_object,
     message->set_allocated_req(req);
 }
 
-std::vector<uint8_t> new_hand_shake_pack()
+std::vector<uint8_t> new_hand_shake_pack(conn_info_t &ci)
 {
     auto* init_login_req = new qihoo::protocol::messages::InitLoginReq();
-    init_login_req->set_client_ram(g_user_info.client_ram);
-    init_login_req->set_sig(g_user_info.sign);
+    init_login_req->set_client_ram(ci.client_ram);
+    init_login_req->set_sig(ci.sign);
 
     qihoo::protocol::messages::Message msg;
-    new_request_message(InitLoginReq, init_login_req, &msg);
+    new_request_message(InitLoginReq, init_login_req, &msg, ci);
 
     std::string msgc = msg.SerializeAsString();
 
@@ -120,24 +120,23 @@ std::vector<uint8_t> new_hand_shake_pack()
     return result;
 }
 
-std::vector<uint8_t> new_login_pack()
+std::vector<uint8_t> new_login_pack(conn_info_t &ci)
 {
     auto* login = new qihoo::protocol::messages::LoginReq();
     login->set_app_id(g_config.appId);
-    login->set_server_ram(g_user_info.server_ram);
+    login->set_server_ram(ci.server_ram);
 
     std::stringstream secret_ram_stream;
-    secret_ram_stream.write(g_user_info.server_ram.c_str(),
-        g_user_info.server_ram.length());
+    secret_ram_stream.write(ci.server_ram.c_str(), ci.server_ram.length());
     secret_ram_stream.write(random_string(8).c_str(), 8);
 
     std::string secret_ram = rc4_str((const uint8_t*)secret_ram_stream.str().data(),
         secret_ram_stream.str().length(),
-        (const uint8_t*)g_user_info.password.data(),
-        g_user_info.password.length());
+        (const uint8_t*)ci.password.data(),
+        ci.password.length());
     login->set_secret_ram(secret_ram);
 
-    std::string verf_code = make_verf_code(g_user_info.userid);
+    std::string verf_code = make_verf_code(ci.userid);
     login->set_verf_code(verf_code);
 
     login->set_net_type(4);
@@ -146,7 +145,7 @@ std::vector<uint8_t> new_login_pack()
     login->set_platform("h5");
 
     qihoo::protocol::messages::Message msg;
-    new_request_message(LoginReq, login, &msg);
+    new_request_message(LoginReq, login, &msg, ci);
 
     std::string msgc = msg.SerializeAsString();
 
@@ -169,13 +168,13 @@ std::vector<uint8_t> new_login_pack()
 }
 
 //_sendJoinChatroomPack
-std::vector<uint8_t> new_join_chat_room_pack()
+std::vector<uint8_t> new_join_chat_room_pack(conn_info_t &ci)
 {
     auto* room = new qihoo::protocol::chatroom::ChatRoom();
-    room->set_roomid(g_user_info.roomId);
+    room->set_roomid(ci.roomId);
 
     auto* applyjoinchatroomreq = new qihoo::protocol::chatroom::ApplyJoinChatRoomRequest();
-    applyjoinchatroomreq->set_roomid(g_user_info.roomId);
+    applyjoinchatroomreq->set_roomid(ci.roomId);
     applyjoinchatroomreq->set_userid_type(0);
     applyjoinchatroomreq->set_allocated_room(room);
 
@@ -188,9 +187,9 @@ std::vector<uint8_t> new_join_chat_room_pack()
     std::string uuid = md5_str(random_string(20));
     packet->set_uuid(uuid);
 
-    packet->set_client_sn(g_user_info.sn);
-    packet->set_roomid(g_user_info.roomId);
-    std::cout << g_user_info.roomId << ":222" << std::endl;;
+    packet->set_client_sn(ci.sn);
+    packet->set_roomid(ci.roomId);
+    std::cout << ci.roomId << ":222" << std::endl;;
     packet->set_appid(g_config.appId);
     packet->set_allocated_to_server_data(to_server_data);
 
@@ -199,7 +198,7 @@ std::vector<uint8_t> new_join_chat_room_pack()
     service_req->set_request(packet->SerializePartialAsString());
 
     qihoo::protocol::messages::Message msg;
-    new_request_message(Service_Req, service_req, &msg);
+    new_request_message(Service_Req, service_req, &msg, ci);
 
     std::string msgc = msg.SerializeAsString();
 
