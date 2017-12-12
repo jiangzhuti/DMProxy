@@ -10,7 +10,7 @@ struct str_case_less
     }
 };
 
-std::map<std::string, platform_creator_t, str_case_less> platform_creator_table;
+static std::map<std::string, platform_creator_t, str_case_less> platform_creator_table;
 
 void platforms_init()
 {
