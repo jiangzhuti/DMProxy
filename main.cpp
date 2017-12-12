@@ -64,9 +64,7 @@ static websocketpp::lib::asio::io_service server_io_service;
 static websocketpp::lib::asio::io_service client_io_service;
 
 using namespace boost::bimaps; //这个组合起来实在是太长
-struct tag_roomid{};
-struct tag_c_conn{};
-struct tag_s_conn{};
+
 //1.
 //use std::owner_less to compare connection_hdl (aka weak_ptr)
 //see https://stackoverflow.com/questions/33445976/is-it-safe-to-store-a-changing-object-in-a-stl-set/
