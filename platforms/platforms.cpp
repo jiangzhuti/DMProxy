@@ -1,5 +1,7 @@
 #include "platforms.hpp"
 #include <cstring>
+#include "huajiao/huajiao.hpp"
+
 struct str_case_less
 {
     bool operator() (const std::string &lhs, const std::string &rhs) const

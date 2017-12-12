@@ -5,7 +5,6 @@
 #include <map>
 
 #include "platform_base.hpp"
-#include "huajiao/huajiao.hpp"
 
 platform_base_ptr_t platform_get_instance(std::string tag);
 void platforms_init();
