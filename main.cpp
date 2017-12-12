@@ -137,7 +137,6 @@ void handle_platform_packet(const platform_packet_t &packet, websocketpp::connec
     }
 }
 
-//only use read lock
 void on_client_message(platform_base_ptr_t pbase, websocketpp::connection_hdl hdl, message_ptr msg)
 {
     platform_packet_t packet;
