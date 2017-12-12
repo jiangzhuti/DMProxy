@@ -1,15 +1,14 @@
-#include "parse_pack.hpp"
-#include "global.hpp"
 #include "json11/json11.hpp"
 #include "utils/gzip.hpp"
 #include "utils/rc4.hpp"
+#include "parse_pack.hpp"
 
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
-std::string HandleBinaryMessage(const void* data, uint32_t size, conn_info_t &ci)
+std::string HandleBinaryMessage(const void* data, uint32_t size, huajiao_conn_info_t &ci)
 {
     if (ci.handshake) {
         if (ci.bLogin) {
@@ -23,7 +22,7 @@ std::string HandleBinaryMessage(const void* data, uint32_t size, conn_info_t &ci
 }
 
 //_processMessagePack
-std::string parse_message_pack(const void* data, uint32_t size, conn_info_t &ci)
+std::string parse_message_pack(const void* data, uint32_t size, huajiao_conn_info_t &ci)
 {
     std::string dm_msg;
     std::stringstream sstream;
@@ -254,12 +253,12 @@ void parse_chat_room_new_message(const void* data, uint32_t size, qihoo::protoco
 }
 
 //_processHandShakePack
-std::string parse_hand_shake_pack(const void* data, uint32_t size, conn_info_t &ci)
+std::string parse_hand_shake_pack(const void* data, uint32_t size, huajiao_conn_info_t &ci)
 {
     uint32_t length = size - 6;
     std::stringstream sstream;
 
-    std::vector<uint8_t> out_result = rc4_vector((const uint8_t*)data + 6, length, reinterpret_cast<const uint8_t*>(g_config.defaultKey.data()), g_config.defaultKey.length());
+    std::vector<uint8_t> out_result = rc4_vector((const uint8_t*)data + 6, length, reinterpret_cast<const uint8_t*>(huajiao_config.defaultKey.data()), huajiao_config.defaultKey.length());
 
     qihoo::protocol::messages::Message message;
     parse_address_book_message(out_result.data(), out_result.size(), &message);
@@ -281,7 +280,7 @@ std::string parse_hand_shake_pack(const void* data, uint32_t size, conn_info_t &
 }
 
 //_processLoginPack
-std::string parse_longin_response_pack(const void* data, uint32_t size, conn_info_t &ci)
+std::string parse_longin_response_pack(const void* data, uint32_t size, huajiao_conn_info_t &ci)
 {
     uint32_t length = size - 4;
     std::stringstream sstream;

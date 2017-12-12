@@ -25,12 +25,12 @@ uint32_t swap_uint32(uint32_t value)
 }
 
 void new_request_message(PACKET_TYPE msgid, void* req_object,
-    qihoo::protocol::messages::Message* message, conn_info_t &ci)
+    qihoo::protocol::messages::Message* message, huajiao_conn_info_t &ci)
 {
     message->set_msgid(msgid);
     message->set_sn(ci.sn);
     message->set_sender(ci.sender);
-    message->set_sender_type(g_config.senderType);
+    message->set_sender_type(huajiao_config.senderType);
 
     auto* req = new qihoo::protocol::messages::Request();
 
@@ -88,7 +88,7 @@ void new_request_message(PACKET_TYPE msgid, void* req_object,
     message->set_allocated_req(req);
 }
 
-std::vector<uint8_t> new_hand_shake_pack(conn_info_t &ci)
+std::vector<uint8_t> new_hand_shake_pack(huajiao_conn_info_t &ci)
 {
     auto* init_login_req = new qihoo::protocol::messages::InitLoginReq();
     init_login_req->set_client_ram(ci.client_ram);
@@ -109,8 +109,8 @@ std::vector<uint8_t> new_hand_shake_pack(conn_info_t &ci)
 
     std::vector<uint8_t> result(length);
     rc4_ptr(reinterpret_cast<const uint8_t*>(msgc.data()), msgc.length(),
-        reinterpret_cast<const uint8_t*>(g_config.defaultKey.data()),
-        g_config.defaultKey.length(), result.data() + 12 + 4);
+        reinterpret_cast<const uint8_t*>(huajiao_config.defaultKey.data()),
+        huajiao_config.defaultKey.length(), result.data() + 12 + 4);
     memcpy(result.data(), szHeader, 12);
     memcpy(result.data() + 12, &ulength, 4);
 
@@ -120,10 +120,10 @@ std::vector<uint8_t> new_hand_shake_pack(conn_info_t &ci)
     return result;
 }
 
-std::vector<uint8_t> new_login_pack(conn_info_t &ci)
+std::vector<uint8_t> new_login_pack(huajiao_conn_info_t &ci)
 {
     auto* login = new qihoo::protocol::messages::LoginReq();
-    login->set_app_id(g_config.appId);
+    login->set_app_id(huajiao_config.appId);
     login->set_server_ram(ci.server_ram);
 
     std::stringstream secret_ram_stream;
@@ -156,8 +156,8 @@ std::vector<uint8_t> new_login_pack(conn_info_t &ci)
     uint32_t ulength = swap_uint32(length);
     std::vector<uint8_t> result(length);
     rc4_ptr((const uint8_t*)msgc.data(), msgc.length(),
-        (const uint8_t*)g_config.defaultKey.data(),
-        g_config.defaultKey.length(), result.data() + 4);
+        (const uint8_t*)huajiao_config.defaultKey.data(),
+        huajiao_config.defaultKey.length(), result.data() + 4);
 
     memcpy(result.data(), &ulength, 4);
 
@@ -168,7 +168,7 @@ std::vector<uint8_t> new_login_pack(conn_info_t &ci)
 }
 
 //_sendJoinChatroomPack
-std::vector<uint8_t> new_join_chat_room_pack(conn_info_t &ci)
+std::vector<uint8_t> new_join_chat_room_pack(huajiao_conn_info_t &ci)
 {
     auto* room = new qihoo::protocol::chatroom::ChatRoom();
     room->set_roomid(ci.roomId);
@@ -189,7 +189,7 @@ std::vector<uint8_t> new_join_chat_room_pack(conn_info_t &ci)
 
     packet->set_client_sn(ci.sn);
     packet->set_roomid(ci.roomId);
-    packet->set_appid(g_config.appId);
+    packet->set_appid(huajiao_config.appId);
     packet->set_allocated_to_server_data(to_server_data);
 
     auto* service_req = new qihoo::protocol::messages::Service_Req();

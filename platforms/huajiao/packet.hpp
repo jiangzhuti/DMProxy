@@ -1,8 +1,3 @@
-#ifndef GLOBAL_HPP
-#define GLOBAL_HPP
-
-#include <string>
-#include <utils/others.hpp>
 
 enum PACKET_TYPE
 {
@@ -74,45 +69,3 @@ enum ERROR_TYPE
 #define MOBILE_ANDROID	"android"
 #define MOBILE_IOS		"ios"
 #define MOBILE_PC		"pc"
-
-struct GlobalConfig
-{
-    std::string flag = "qh";
-    int protocolVersion = 1;
-    int clientVersion = 101;
-    int appId = 2080;
-    std::string defaultKey = "3f190210cb1cf32a2378ee57900acf78";
-    std::string reserved;
-    std::string senderType = "jid";
-    std::string wsServer = "ws://bridge.huajiao.com";
-    int timeout = 20000;
-};
-
-struct conn_info_t
-{
-    std::string userid;
-    std::string password;
-    std::string sender;
-    std::string token;
-    std::string roomId;
-    bool        handshake;
-    std::string sign;
-    std::string client_ram;
-    std::string server_ram;
-    std::string	session;//session_key
-    bool        bLogin;
-    time_t		sn;
-
-    conn_info_t():userid("688961111731502278921563"),
-               password("688961111731502278921563"),
-               sender("688961111731502278921563"),
-               handshake(false),
-               client_ram(random_string(10)),
-               bLogin(false),
-               sn(random_number(10))
-    {}
-};
-
-extern  GlobalConfig    g_config;
-
-#endif // GLOBAL_HPP

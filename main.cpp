@@ -7,6 +7,7 @@
 #include <sstream>
 #include <memory>
 #include <utility>
+#include <tuple>
 #include <boost/program_options.hpp>
 #include <boost/bimap.hpp>
 #include <boost/bimap/set_of.hpp>
@@ -14,10 +15,9 @@
 #include <boost/bimap/multiset_of.hpp>
 #include <boost/bimap/vector_of.hpp>
 #include <boost/bimap/tags/tagged.hpp>
-#include <boost/thread.hpp>
-#include "make_pack.hpp"
-#include "parse_pack.hpp"
+#include "platforms/platforms.hpp"
 #include "utils/others.hpp"
+#include "utils/rw_lock.hpp"
 
 struct dmproxy_config : public websocketpp::config::asio {
     // pull default settings from our core config
@@ -76,16 +76,10 @@ struct tag_s_conn{};
 //3.
 //STL Containers are thread-safe for concurrent read, so need a rw lock
 //see https://stackoverflow.com/questions/7455982/is-stl-vector-concurrent-read-thread-safe
-//4.
-//there is no standard way to use rw lock in c++11
-//so use boost::shared_mutex to implement it
-//5. lock order: rc->cs->ci
-typedef boost::shared_mutex rw_mutex_t;
-typedef boost::shared_lock<boost::shared_mutex> rlock_t;
-typedef boost::unique_lock<boost::shared_mutex> wlock_t;
+
 
 typedef boost::bimap<
-                     unordered_set_of<tagged<uint64_t, struct tag_roomid>>,
+                     unordered_set_of<tagged<std::string, struct tag_roomid>>,
                      set_of<tagged<connection_hdl, struct tag_c_conn>, std::owner_less<connection_hdl>>
                     > roomid_conn_bm;
 static roomid_conn_bm rc_bm;
@@ -98,14 +92,6 @@ typedef boost::bimap<
 static client_server_conn_bm cs_bm;
 static rw_mutex_t cs_rw_mtx;
 
-typedef std::map<
-                 connection_hdl,
-                 conn_info_t,
-                 std::owner_less<websocketpp::connection_hdl>
-                > conn_info_map;
-static conn_info_map ci_map;
-static rw_mutex_t ci_rw_mtx;
-
 using websocketpp::lib::bind;
 
 namespace po = boost::program_options;
@@ -113,68 +99,67 @@ namespace po = boost::program_options;
 #define PRINT_ERROR(ec) \
     std::cerr << __func__ << ":" << __LINE__ << " error occured because: " << ec.message() << std::endl;
 
-//only use read lock
-void on_client_message(uint64_t roomid, websocketpp::connection_hdl hdl, message_ptr msg)
+void handle_platform_packet(const platform_packet_t &packet, websocketpp::connection_hdl c_hdl)
 {
     websocketpp::lib::error_code ec;
-    std::string dm_msg;
-    {
-        rlock_t ci_rlock(ci_rw_mtx);
-        conn_info_t& ci = ci_map[hdl];
-        dm_msg = HandleBinaryMessage(msg->get_payload().data(), msg->get_payload().length(), ci);
-        if (ci.handshake && !ci.bLogin) {
-            std::vector<uint8_t> loginpacket = new_login_pack(ci);
-            dmp_client.send(hdl, loginpacket.data(), loginpacket.size(), websocketpp::frame::opcode::BINARY, ec);
-            if (ec) {
-                PRINT_ERROR(ec)
-            }
-            return;
-        }
-        if (ci.handshake && ci.bLogin && ci.roomId.empty()) {
-            std::stringstream sstream;
-            sstream << roomid;
-            sstream >> ci.roomId;
-            std::vector<uint8_t> jcpacket = new_join_chat_room_pack(ci);
-            dmp_client.send(hdl, jcpacket.data(), jcpacket.size(), websocketpp::frame::opcode::BINARY, ec);
-            if (ec) {
-                PRINT_ERROR(ec)
-            }
-            return;
-        }
+    const void *data;
+    size_t size = 0;
+    auto opcode = websocketpp::frame::opcode::TEXT;
+    if (std::get<3>(packet) == platform_packet_direct::NONE || std::get<2>(packet) == platform_packet_encap::NONE) {
+        return;
     }
-    {
+    if (std::get<2>(packet) == platform_packet_encap::TEXT) {
+        data = std::get<0>(packet).data();
+        size = std::get<0>(packet).length();
+        opcode = websocketpp::frame::opcode::TEXT;
+    } else if (std::get<2>(packet) == platform_packet_encap::BINARY) {
+        data = std::get<1>(packet).data();
+        size = std::get<1>(packet).size();
+        opcode = websocketpp::frame::opcode::BINARY;
+    }
+    if (std::get<3>(packet) == platform_packet_direct::CLIENT) {
+        dmp_client.send(c_hdl, data, size, opcode, ec);
+        if (ec) {
+            PRINT_ERROR(ec)
+        }
+    } else if (std::get<3>(packet) == platform_packet_direct::SERVER) {
         rlock_t cs_rlock(cs_rw_mtx);
-        auto range = cs_bm.by<tag_c_conn>().equal_range(hdl); //find server conns
+        auto range = cs_bm.by<tag_c_conn>().equal_range(c_hdl); //find server conns
         for (auto conn = range.first; conn != range.second; conn++) {
             websocketpp::lib::error_code ec;
-            dmp_server.send(conn->second, dm_msg, websocketpp::frame::opcode::TEXT, ec);
+            dmp_server.send(conn->second, data, size, opcode, ec);
             if (ec) {
                 PRINT_ERROR(ec)
             }
         }
+    } else {
+        //never reached
     }
 }
 
-void on_client_open(uint64_t room_id, websocketpp::connection_hdl hdl)
+//only use read lock
+void on_client_message(platform_base_ptr_t pbase, websocketpp::connection_hdl hdl, message_ptr msg)
 {
-    std::vector<uint8_t> hspacket;
-    {
-        rlock_t ci_rlock(ci_rw_mtx);
-        conn_info_t& ci = ci_map[hdl];
-        hspacket = new_hand_shake_pack(ci);
+    platform_packet_t packet;
+    if (msg->get_opcode() == websocketpp::frame::opcode::BINARY) {
+        packet = pbase->handle_binary_message(msg->get_payload().data(), msg->get_payload().length());
+    } else {
+        packet = pbase->handle_text_message(msg->get_payload());
     }
-    websocketpp::lib::error_code ec;
-    dmp_client.send(hdl, hspacket.data(), hspacket.size(), websocketpp::frame::opcode::BINARY, ec);
-    if (ec) {
-        PRINT_ERROR(ec)
-    }
+    handle_platform_packet(packet, hdl);
+}
+
+void on_client_open(platform_base_ptr_t pbase, std::string roomid, websocketpp::connection_hdl hdl)
+{
+    auto packet = pbase->handle_open(roomid);
+    handle_platform_packet(packet, hdl);
+
 }
 
 void on_client_close(websocketpp::connection_hdl hdl)
 {
     wlock_t rc_wlock(rc_rw_mtx);
     wlock_t cs_wlock(cs_rw_mtx);
-    wlock_t ci_wlock(ci_rw_mtx);
     auto range = cs_bm.by<tag_c_conn>().equal_range(hdl);
     for (auto conn = range.first; conn != range.second; conn++) {
         websocketpp::lib::error_code ec;
@@ -186,14 +171,12 @@ void on_client_close(websocketpp::connection_hdl hdl)
     }
     cs_bm.by<tag_c_conn>().erase(hdl);
     rc_bm.by<tag_c_conn>().erase(hdl);
-    ci_map.erase(hdl);
 }
 
 void client_conn_close_with_check(websocketpp::connection_hdl hdl)
 {
     if (cs_bm.by<tag_c_conn>().count(hdl) == 0) {
         rc_bm.by<tag_c_conn>().erase(hdl);
-        ci_map.erase(hdl);
         websocketpp::lib::error_code ec;
         dmp_client.close(hdl, websocketpp::close::status::normal, std::string("close"), ec);
         if (ec) {
@@ -206,7 +189,6 @@ void on_server_close(websocketpp::connection_hdl hdl)
 {
     wlock_t rc_wlock(rc_rw_mtx);
     wlock_t cs_wlock(cs_rw_mtx);
-    wlock_t ci_wlock(ci_rw_mtx);
     auto c_hdl = cs_bm.by<tag_s_conn>().find(hdl)->second;
     cs_bm.by<tag_s_conn>().erase(hdl);
     client_conn_close_with_check(c_hdl);
@@ -218,26 +200,35 @@ void on_server_message(websocketpp::connection_hdl hdl, message_ptr msg)
         //ignored;
         return;
     }
-    uint64_t room_id;
+    //payload format :: "platform-tag" + "_" + "roomid"
     std::string payload = msg->get_payload();
-    std::stringstream sstream;
-    sstream << payload;
-    sstream >> room_id;
+    auto pos = payload.find_first_of('_');
+    if (!(payload.length() > 3 && pos > 0 && pos < payload.length() - 1)) {
+        dmp_server.send(hdl, std::string("format error!"), websocketpp::frame::opcode::TEXT);
+        return;
+    }
+    std::string tag = std::string(payload, 0, pos);
+    std::string roomid = std::string(payload, pos + 1);
+
+    platform_base_ptr_t pbase = platform_get_instance(tag);
+    if (pbase == nullptr) {
+        dmp_server.send(hdl, std::string("platform ") + tag + std::string(" is not valid!"), websocketpp::frame::opcode::TEXT);
+        return;
+    }
     websocketpp::lib::error_code ec;
-    if (!str_is_num(payload) || payload.length() != 9) {
-        dmp_server.send(hdl, std::string("roomid invalid!"), msg->get_opcode());
+    if (!pbase->is_roomid_valid(roomid)) {
+        dmp_server.send(hdl, std::string("roomid invalid!"), websocketpp::frame::opcode::TEXT);
         return;
     }
     websocketpp::connection_hdl c_hdl, old_c_hdl;
     wlock_t rc_wlock(rc_rw_mtx);
     wlock_t cs_wlock(cs_rw_mtx);
-    wlock_t ci_wlock(ci_rw_mtx);
     //check if the server conn already bound to a client conn
     if (cs_bm.by<tag_s_conn>().count(hdl) != 0) { //todo. should assert == 1
         //find client conn
         old_c_hdl = cs_bm.by<tag_s_conn>().find(hdl)->second;
         //if same room id
-        if (room_id == rc_bm.by<tag_c_conn>().find(old_c_hdl)->second) {
+        if (roomid == rc_bm.by<tag_c_conn>().find(old_c_hdl)->second) {
             //just return
             return;
         } else { //request a new room id
@@ -248,23 +239,24 @@ void on_server_message(websocketpp::connection_hdl hdl, message_ptr msg)
         }
     }
     //if new room id exsits
-    if (rc_bm.by<tag_roomid>().count(room_id) != 0) {
+    if (rc_bm.by<tag_roomid>().count(roomid) != 0) {
         //find client conn
-        c_hdl = rc_bm.by<tag_roomid>().find(room_id)->second;
+        c_hdl = rc_bm.by<tag_roomid>().find(roomid)->second;
     } else {
         //create new client conn
-        client::connection_ptr c_conn = dmp_client.get_connection(uri, ec);
+        client::connection_ptr c_conn = dmp_client.get_connection(pbase->get_dm_url(), ec);
         if (ec) {
             PRINT_ERROR(ec)
             dmp_server.send(hdl, std::string("open connection failed!"), websocketpp::frame::opcode::TEXT);
             return;
         }
-        c_conn->set_open_handler(bind(on_client_open, room_id, websocketpp::lib::placeholders::_1));
-        c_conn->set_message_handler(bind(on_client_message, room_id, websocketpp::lib::placeholders::_1, websocketpp::lib::placeholders::_2));
+        c_conn->set_open_handler(bind(on_client_open, pbase, roomid, websocketpp::lib::placeholders::_1));
+        c_conn->set_message_handler(bind(on_client_message, pbase, websocketpp::lib::placeholders::_1, websocketpp::lib::placeholders::_2));
+        c_conn->set_close_handler(on_client_close);
+
         dmp_client.connect(c_conn);
         c_hdl = c_conn->get_handle();
-        rc_bm.by<tag_roomid>().insert(std::make_pair(room_id, c_hdl));
-        ci_map[c_hdl] = conn_info_t();
+        rc_bm.by<tag_roomid>().insert(std::make_pair(roomid, c_hdl));
     }
     //bind server conn to client conn
     cs_bm.by<tag_c_conn>().insert(std::make_pair(c_hdl, hdl));
@@ -277,9 +269,7 @@ int main(int argc, char *argv[])
             ("help", "Produce help message")
             ("server-port", po::value<uint16_t>(&server_port)->default_value(9001), "Set the DMProxy server port, default to 9001")
             ("server-threads", po::value<int>(&server_threads)->default_value(3), "Set the number of the DMProxy server io_service threads, defalut to 3")
-            ("client-threads", po::value<int>(&client_threads)->default_value(3), "Set the number of the DMProxy client io_service threads, defalut to 3")
-            ("dm-ip", po::value<std::string>(), "Set the danmu websocket ip")
-            ("dm-port", po::value<int>(), "set the danmu websocket port");
+            ("client-threads", po::value<int>(&client_threads)->default_value(3), "Set the number of the DMProxy client io_service threads, defalut to 3");
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
     po::notify(vm);
@@ -287,16 +277,8 @@ int main(int argc, char *argv[])
         std::cout << desc << std::endl;
         return 1;
     }
-    if (vm.count("dm-ip") == 0 || vm.count("dm-port") == 0) {
-        std::cout << "require dm-ip and dm-port" << std::endl;
-        return 1;
-    } else {
-        std::string dmip = vm["dm-ip"].as<std::string>();
-        int dmport = vm["dm-port"].as<int>();
-        std::stringstream ss;
-        ss << "ws://" << dmip << ":" << dmport;
-        ss >> uri;
-    }
+
+    platforms_init();
 
     try {
         dmp_server.clear_access_channels(websocketpp::log::alevel::all);
@@ -317,8 +299,6 @@ int main(int argc, char *argv[])
         dmp_client.clear_access_channels(websocketpp::log::alevel::all);
         dmp_client.clear_error_channels(websocketpp::log::alevel::all);
         dmp_client.init_asio(&client_io_service);
-        dmp_client.set_close_handler(on_client_close);
-
 
         websocketpp::lib::asio::io_service::work client_work(client_io_service);
 

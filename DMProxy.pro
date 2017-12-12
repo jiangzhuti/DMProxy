@@ -3,24 +3,13 @@ CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
 
-SOURCES += main.cpp \
-    protocol/ChatRoom.pb.cc \
-    protocol/CommunicationData.pb.cc \
-    make_pack.cpp \
-    global.cpp \
-    parse_pack.cpp \
-    utils/md5.cpp \
-    utils/rc4.cpp \
-    utils/gzip.cpp \
-    json11/json11.cpp \
-    utils/others.cpp
-
-INCLUDEPATH += ./include
-
 LIBS += -lboost_thread -lboost_system -lboost_program_options -lboost_container -lpthread -lssl -lcrypto -lz
 LIBS += ../DMProxy/lib/libprotobuf.a
 
+INCLUDEPATH += ./include
+
 DISTFILES += \
+    lib/libprotobuf.a \
     LICENSE \
     include/google/protobuf/compiler/plugin.proto \
     include/google/protobuf/compiler/profile.proto \
@@ -34,18 +23,9 @@ DISTFILES += \
     include/google/protobuf/struct.proto \
     include/google/protobuf/timestamp.proto \
     include/google/protobuf/type.proto \
-    include/google/protobuf/wrappers.proto \
-    lib/libprotobuf.a
+    include/google/protobuf/wrappers.proto
 
 HEADERS += \
-    protocol/ChatRoom.pb.h \
-    protocol/CommunicationData.pb.h \
-    make_pack.hpp \
-    global.hpp \
-    parse_pack.hpp \
-    utils/md5.hpp \
-    utils/rc4.hpp \
-    utils/gzip.hpp \
     include/google/protobuf/compiler/cpp/cpp_generator.h \
     include/google/protobuf/compiler/csharp/csharp_generator.h \
     include/google/protobuf/compiler/csharp/csharp_names.h \
@@ -162,4 +142,35 @@ HEADERS += \
     include/google/protobuf/wire_format_lite_inl.h \
     include/google/protobuf/wrappers.pb.h \
     json11/json11.hpp \
-    utils/others.hpp
+    platforms/huajiao/protocol/ChatRoom.pb.h \
+    platforms/huajiao/protocol/CommunicationData.pb.h \
+    platforms/huajiao/huajiao.hpp \
+    platforms/huajiao/make_pack.hpp \
+    platforms/huajiao/packet.hpp \
+    platforms/huajiao/parse_pack.hpp \
+    utils/gzip.hpp \
+    utils/md5.hpp \
+    utils/others.hpp \
+    utils/rc4.hpp \
+    platforms/platform_base.hpp \
+    platforms/platforms.hpp \
+    platforms/huajiao/huajiao_config.hpp \
+    utils/rw_lock.hpp
+
+SOURCES += \
+    json11/json11.cpp \
+    platforms/huajiao/protocol/ChatRoom.pb.cc \
+    platforms/huajiao/protocol/CommunicationData.pb.cc \
+    platforms/huajiao/huajiao.cpp \
+    platforms/huajiao/make_pack.cpp \
+    platforms/huajiao/parse_pack.cpp \
+    utils/gzip.cpp \
+    utils/md5.cpp \
+    utils/others.cpp \
+    utils/rc4.cpp \
+    main.cpp \
+    platforms/platform_base.cpp \
+    platforms/huajiao/huajiao_config.cpp \
+    platforms/platforms.cpp \
+    utils/rw_lock.cpp
+
