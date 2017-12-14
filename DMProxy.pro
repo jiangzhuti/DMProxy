@@ -153,7 +153,8 @@ HEADERS += \
     platforms/platforms.hpp \
     platforms/huajiao/huajiao_config.hpp \
     utils/rw_lock.hpp \
-    network/dmp_cs.hpp
+    network/dmp_cs.hpp \
+    utils/log.hpp
 
 SOURCES += \
     json11/json11.cpp \
@@ -169,5 +170,6 @@ SOURCES += \
     platforms/huajiao/huajiao_config.cpp \
     platforms/platforms.cpp \
     utils/rw_lock.cpp \
-    network/dmp_cs.cpp
+    network/dmp_cs.cpp \
+    utils/log.cpp
 

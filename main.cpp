@@ -28,9 +28,6 @@ static rw_mutex_t rp_rw_mtx;
 
 namespace po = boost::program_options;
 
-#define PRINT_ERROR(ec) \
-    std::cerr << __func__ << ":" << __LINE__ << " error occured because: " << ec.message() << std::endl;
-
 void on_platform_close(std::string roomstr)
 {
     wlock_t wlock(rp_rw_mtx);
@@ -71,7 +68,8 @@ void on_server_message(connection_hdl hdl, message_ptr msg)
     wlock_t rp_wlock(rp_rw_mtx);
     if (rp_map.count(roomstr) != 0) {
         pbase = rp_map[roomstr];
-        if (pbase->have_listener(hdl)) {
+        if (!pbase->have_listener(hdl)) {
+            pbase->add_listener(hdl);
             return;
         }
     } else {
@@ -89,7 +87,8 @@ void on_server_message(connection_hdl hdl, message_ptr msg)
     auto conn_ptr = server.get_con_from_hdl(hdl);
     conn_ptr->set_close_handler(std::bind(on_server_close, roomstr, std::placeholders::_1));
     pbase->add_listener(hdl);
-    pbase->set_close_callback(on_platform_close);
+    pbase->set_close_callback(on_platform_close);\
+    rp_map[roomstr] = pbase;
     pbase->start(roomid);
 
 }
@@ -126,6 +125,9 @@ int main(int argc, char *argv[])
         server.listen(server_port);
         server.start_accept();
 
+        client.clear_access_channels(websocketpp::log::alevel::all);
+        client.clear_error_channels(websocketpp::log::alevel::all);
+        client.init_asio(&platform_io_service);
 
         boost::asio::io_service::work platform_work(platform_io_service);
 
