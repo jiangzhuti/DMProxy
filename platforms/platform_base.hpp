@@ -8,45 +8,39 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <set>
+#include "network/dmp_cs.hpp"
+#include "utils/rw_lock.hpp"
 
-enum class platform_packet_encap
-{
-    TEXT,
-    BINARY,
-    NONE
-};
-enum class platform_packet_direct
-{
-    SERVER,
-    CLIENT,
-    NONE
-};
 
-typedef std::tuple<
-                   std::string, //text message
-                   std::vector<uint8_t>, //binary message
-                   platform_packet_encap, //type
-                   platform_packet_direct //direct
-                  > platform_packet_t;
-
-class platform_base
+class platform_base : public std::enable_shared_from_this<platform_base>
 {
-    //注意!!
-    //自己保证成员函数的线程安全性
+    typedef std::function<void (std::string roomstr)> close_callback_t;
+    using error_code = websocketpp::lib::error_code;
 public:
-    virtual platform_packet_t handle_binary_message(const void *data, size_t size) = 0;
-    virtual platform_packet_t handle_text_message(const std::string &msg) = 0;
-    virtual platform_packet_t handle_open(std::string roomid) = 0;
-    virtual bool is_roomid_valid(std::string roomid) = 0;
-    virtual std::string get_dm_url() = 0;
+    platform_base(boost::asio::io_service *ios_ptr) : m_close_callback(nullptr), m_ios_ptr(ios_ptr){}
+    void add_listener(connection_hdl conn_hdl);
+    void erase_listener(connection_hdl conn_hdl);
+    bool have_listener(connection_hdl conn_hdl);
+    size_t listeners_count();
+    void set_close_callback(close_callback_t cb);
+    virtual void start(std::string roomid) = 0;
+    virtual void close() = 0;
+    virtual bool is_room_valid(std::string roomid) = 0;
     virtual ~platform_base();
+private:
+    std::set<connection_hdl, std::owner_less<connection_hdl>> m_listeners;
+    rw_mutex_t m_lmtx;
 protected:
-    platform_base() {}
+    void publish(std::string dm_msg);
+    close_callback_t m_close_callback;
+    boost::asio::io_service *m_ios_ptr;
+
 
 };
 
 typedef std::shared_ptr<platform_base> platform_base_ptr_t;
 
-typedef std::function<platform_base_ptr_t(void)> platform_creator_t;
+typedef std::function<platform_base_ptr_t(boost::asio::io_service*)> platform_creator_t;
 
 #endif // PLATFORM_BASE_HPP

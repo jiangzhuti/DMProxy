@@ -145,9 +145,6 @@ HEADERS += \
     platforms/huajiao/protocol/ChatRoom.pb.h \
     platforms/huajiao/protocol/CommunicationData.pb.h \
     platforms/huajiao/huajiao.hpp \
-    platforms/huajiao/make_pack.hpp \
-    platforms/huajiao/packet.hpp \
-    platforms/huajiao/parse_pack.hpp \
     utils/gzip.hpp \
     utils/md5.hpp \
     utils/others.hpp \
@@ -155,15 +152,14 @@ HEADERS += \
     platforms/platform_base.hpp \
     platforms/platforms.hpp \
     platforms/huajiao/huajiao_config.hpp \
-    utils/rw_lock.hpp
+    utils/rw_lock.hpp \
+    network/dmp_cs.hpp
 
 SOURCES += \
     json11/json11.cpp \
     platforms/huajiao/protocol/ChatRoom.pb.cc \
     platforms/huajiao/protocol/CommunicationData.pb.cc \
     platforms/huajiao/huajiao.cpp \
-    platforms/huajiao/make_pack.cpp \
-    platforms/huajiao/parse_pack.cpp \
     utils/gzip.cpp \
     utils/md5.cpp \
     utils/others.cpp \
@@ -172,5 +168,6 @@ SOURCES += \
     platforms/platform_base.cpp \
     platforms/huajiao/huajiao_config.cpp \
     platforms/platforms.cpp \
-    utils/rw_lock.cpp
+    utils/rw_lock.cpp \
+    network/dmp_cs.cpp
 
