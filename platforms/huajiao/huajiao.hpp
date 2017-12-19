@@ -45,14 +45,14 @@ private:
 
     void new_request_message(PACKET_TYPE msgid, void* req_object, qihoo::protocol::messages::Message* message);
     std::vector<uint8_t> new_handshake_packet();
-    std::string parse_handshake_packet(const void *data, size_t size);
+    void parse_handshake_packet(const void *data, size_t size);
     std::vector<uint8_t> new_login_packet();
-    std::string parse_login_response_packet(const void *data, size_t size);
+    void parse_login_response_packet(const void *data, size_t size);
     std::vector<uint8_t> new_join_chatroom_packet();
     std::string handle_binary_message(const void *data, size_t size);
     std::string parse_message_packet(const void *data, size_t size);
     std::string parse_new_message_notify(const qihoo::protocol::messages::Message& message);
-    std::string parse_service_resp(const qihoo::protocol::messages::Message& message);
+    void parse_service_resp(const qihoo::protocol::messages::Message& message);
     void parse_address_book_message(const void* data, uint32_t size, qihoo::protocol::messages::Message* message);
     void parse_chat_room_message(const std::string& data, qihoo::protocol::chatroom::ChatRoomPacket* message);
     void parse_chat_room_new_message(const void* data, uint32_t size, qihoo::protocol::chatroom::ChatRoomNewMsg* message);
