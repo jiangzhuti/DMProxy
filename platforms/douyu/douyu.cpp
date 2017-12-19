@@ -119,12 +119,12 @@ void platform_douyu::handle_data(std::vector<uint8_t> *data, boost::system::erro
 {
     std::cerr << __func__ << std::endl;
     do_read_header();
-	if (!ec) {
+    if (!ec) {
         if (data->at(data->size() - 1) != '\0') {
             std::cerr << "error at func:" << __func__ << ", line:" << __LINE__ << std::endl;
             delete data;
             return;
-		}
+        }
         const char *msg_ptr = reinterpret_cast<const char *>(data->data());
         STT_t stt = parse_stt(msg_ptr);
         std::string type = stt["type"];
@@ -151,11 +151,11 @@ void platform_douyu::handle_data(std::vector<uint8_t> *data, boost::system::erro
             //close
             break;
         }
-	} else {
-		PRINT_ERROR(ec)
+    } else {
+        PRINT_ERROR(ec)
         on_client_close();
-	}
-	delete data;
+    }
+    delete data;
 }
 
 void platform_douyu::handle_heartbeat_timer(const boost::system::error_code& ec)
