@@ -68,6 +68,11 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
     wlock_t rp_wlock(rp_rw_mtx);
     if (old_roomstr == roomstr)
         return;
+    auto s_conn = server.get_con_from_hdl(hdl);
+    s_conn->set_message_handler(std::bind(on_server_message,
+                                          roomstr,
+                                          std::placeholders::_1,
+                                          std::placeholders::_2));
     if (rp_map.count(old_roomstr) != 0) {
         auto old_pbase = rp_map[old_roomstr];
         old_pbase->erase_listener(hdl);
@@ -83,9 +88,7 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
             return;
         }
     } else {
-        std::cerr << "1111";
         pbase = platform_get_instance(tag, platform_io_service);
-        std::cerr << "2222";
         if (pbase == nullptr) {
             server.send(hdl, std::string("platform ") + tag + std::string(" is not valid!"), opcode::TEXT);
             return;
@@ -96,7 +99,6 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
             return;
         }
     }
-    std::cerr << "3333";
     auto conn_ptr = server.get_con_from_hdl(hdl);
     conn_ptr->set_close_handler(std::bind(on_server_close, roomstr, std::placeholders::_1));
     pbase->add_listener(hdl);
