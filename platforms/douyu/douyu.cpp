@@ -32,6 +32,20 @@ void platform_douyu::close()
     }
 }
 
+void platform_douyu::on_client_close()
+{
+    boost::system::error_code ec;
+    m_socket.close(ec);
+    if (ec) {
+        PRINT_ERROR(ec)
+    }
+    m_hb_timer.cancel(ec);
+    if (ec) {
+        PRINT_ERROR(ec)
+    }
+    m_close_callback(std::string("douyu_").append(m_roomid));
+}
+
 void platform_douyu::on_connect(boost::system::error_code ec)
 {
     if (ec) {
@@ -56,6 +70,7 @@ void platform_douyu::do_write(std::vector<uint8_t> *packet)
                                         //nothing to do
                                  } else {
                                      PRINT_ERROR(ec)
+                                     on_client_close();
                                  }
                              });
 }
@@ -95,6 +110,7 @@ void platform_douyu::handle_header(std::vector<uint8_t> *header, boost::system::
         do_read_data(data_len - 8);
     } else {
         PRINT_ERROR(ec)
+        on_client_close();
     }
     delete header;
 }
@@ -105,8 +121,9 @@ void platform_douyu::handle_data(std::vector<uint8_t> *data, boost::system::erro
     do_read_header();
 	if (!ec) {
         if (data->at(data->size() - 1) != '\0') {
-			//error
-			//delete data
+            std::cerr << "error at func:" << __func__ << ", line:" << __LINE__ << std::endl;
+            delete data;
+            return;
 		}
         const char *msg_ptr = reinterpret_cast<const char *>(data->data());
         STT_t stt = parse_stt(msg_ptr);
@@ -133,10 +150,10 @@ void platform_douyu::handle_data(std::vector<uint8_t> *data, boost::system::erro
         case ACTION::ACT_TERMINATE:
             //close
             break;
-
         }
 	} else {
 		PRINT_ERROR(ec)
+        on_client_close();
 	}
 	delete data;
 }
@@ -151,6 +168,7 @@ void platform_douyu::handle_heartbeat_timer(const boost::system::error_code& ec)
                                         std::placeholders::_1));
     } else {
         PRINT_ERROR(ec)
+        on_client_close();
     }
 }
 

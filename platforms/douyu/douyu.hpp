@@ -43,6 +43,7 @@ private:
     typedef std::tuple<std::string, std::vector<uint8_t>*, ACTION> msg_action_t;
     typedef std::function<msg_action_t (std::shared_ptr<platform_douyu>, const char *msg, size_t size)> msg_handler_t;
 
+    void on_client_close();
     void do_write(std::vector<uint8_t> *packet);
     void do_read_header();
     void do_read_data(uint32_t data_size);
