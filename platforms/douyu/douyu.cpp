@@ -50,6 +50,7 @@ void platform_douyu::on_connect(boost::system::error_code ec)
 {
     if (ec) {
         PRINT_ERROR(ec)
+        m_close_callback(std::string("douyu_").append(m_roomid));
     }
     do_write(new_login_packet());
     do_read_header();
