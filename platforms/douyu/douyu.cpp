@@ -13,10 +13,12 @@ bool platform_douyu::is_room_valid(std::string roomid)
 void platform_douyu::start(std::string roomid)
 {
     m_roomid = std::move(roomid);
-    auto fp = std::bind(&platform_douyu::on_connect,
-                        std::dynamic_pointer_cast<platform_douyu>(shared_from_this()),
-                        std::placeholders::_1);
-    m_socket.async_connect(m_ep, fp);
+    tcp::resolver::query query(m_danmu_host, m_danmu_port);
+    m_resolver.async_resolve(query, std::bind(&platform_douyu::on_resolve,
+                                              std::dynamic_pointer_cast<platform_douyu>(shared_from_this()),
+                                              std::placeholders::_1,
+                                              std::placeholders::_2
+                                              ));
 }
 
 void platform_douyu::close()
@@ -30,6 +32,19 @@ void platform_douyu::close()
     if (ec) {
         PRINT_ERROR(ec)
     }
+}
+
+void platform_douyu::on_resolve(boost::system::error_code ec, tcp::resolver::iterator iter)
+{
+    if (ec) {
+        PRINT_ERROR(ec)
+        m_close_callback(std::string("douyu_").append(m_roomid));
+        return;
+    }
+    m_ep = *iter;
+    m_socket.async_connect(m_ep, std::bind(&platform_douyu::on_connect,
+                                           std::dynamic_pointer_cast<platform_douyu>(shared_from_this()),
+                                           std::placeholders::_1));
 }
 
 void platform_douyu::on_client_close()
@@ -51,6 +66,7 @@ void platform_douyu::on_connect(boost::system::error_code ec)
     if (ec) {
         PRINT_ERROR(ec)
         m_close_callback(std::string("douyu_").append(m_roomid));
+        return;
     }
     do_write(new_login_packet());
     do_read_header();

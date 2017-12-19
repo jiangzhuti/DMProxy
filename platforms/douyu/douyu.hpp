@@ -19,12 +19,11 @@ public:
                                                        m_resolver(ios),
                                                        m_blogin(false),
                                                        m_bjoin(false),
+                                                       m_danmu_host("openbarrage.douyutv.com"),
+                                                       m_danmu_port("8601"),
                                                        m_hb_timer(ios)
     {
         std::cerr << __func__ << std::endl;
-        tcp::resolver::query query("openbarrage.douyutv.com", "8601");
-        auto i = m_resolver.resolve(query);
-        m_ep = *i;
         msg_handlers["loginres"] = &platform_douyu::handle_loginres_msg;
         msg_handlers["chatmsg"] = &platform_douyu::handle_chatmsg_msg;
 
@@ -43,6 +42,7 @@ private:
     typedef std::tuple<std::string, std::vector<uint8_t>*, ACTION> msg_action_t;
     typedef std::function<msg_action_t (std::shared_ptr<platform_douyu>, const char *msg, size_t size)> msg_handler_t;
 
+    void on_resolve(boost::system::error_code ec, tcp::resolver::iterator iter);
     void on_client_close();
     void do_write(std::vector<uint8_t> *packet);
     void do_read_header();
@@ -66,6 +66,8 @@ private:
     std::string m_roomid;
     bool m_blogin;
     bool m_bjoin;
+    std::string m_danmu_host;
+    std::string m_danmu_port;
     boost::asio::deadline_timer m_hb_timer;
 
     std::map<std::string, msg_handler_t> msg_handlers;
