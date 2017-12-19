@@ -26,6 +26,10 @@ void platform_douyu::close()
     if (ec) {
         PRINT_ERROR(ec)
     }
+    m_hb_timer.cancel(ec);
+    if (ec) {
+        PRINT_ERROR(ec)
+    }
 }
 
 void platform_douyu::on_connect(boost::system::error_code ec)
@@ -88,11 +92,11 @@ void platform_douyu::handle_header(std::vector<uint8_t> *header, boost::system::
     if (!ec) {
         uint32_t data_len = *(uint32_t *)(header->data());
         uint16_t msg_type = *(uint16_t *)(header->data() + 8);
-		delete header;
         do_read_data(data_len - 8);
     } else {
         PRINT_ERROR(ec)
     }
+    delete header;
 }
 
 void platform_douyu::handle_data(std::vector<uint8_t> *data, boost::system::error_code ec, size_t size)
@@ -118,7 +122,6 @@ void platform_douyu::handle_data(std::vector<uint8_t> *data, boost::system::erro
         std::tie(result, packet, action) = msg_handler(std::dynamic_pointer_cast<platform_douyu>(shared_from_this()), msg_ptr, data->size());
         switch (action) {
         case ACTION::ACT_PUBLISH:
-            std::cerr << "publish:" << result << std::endl;;
             publish(result);
             break;
         case ACTION::ACT_DO_WRITE:

@@ -3,7 +3,7 @@ CONFIG += console c++11
 CONFIG -= app_bundle
 CONFIG -= qt
 
-LIBS += -lboost_thread -lboost_system -lboost_program_options -lboost_container -lpthread -lssl -lcrypto -lz
+LIBS += -lboost_thread -lboost_system -lboost_program_options -lpthread -lssl -lcrypto -lz
 LIBS += ../DMProxy/lib/libprotobuf.a
 
 INCLUDEPATH += ./include
