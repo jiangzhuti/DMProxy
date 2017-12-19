@@ -48,7 +48,7 @@ void on_server_close(std::string roomstr, connection_hdl hdl)
     }
 }
 
-void on_server_message(connection_hdl hdl, message_ptr msg)
+void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr msg)
 {
     if (msg->get_opcode() != opcode::TEXT) {
         //ignored;
@@ -66,6 +66,16 @@ void on_server_message(connection_hdl hdl, message_ptr msg)
 
     platform_base_ptr_t pbase;
     wlock_t rp_wlock(rp_rw_mtx);
+    if (old_roomstr == roomstr)
+        return;
+    if (rp_map.count(old_roomstr) != 0) {
+        auto old_pbase = rp_map[old_roomstr];
+        old_pbase->erase_listener(hdl);
+        if (old_pbase->listeners_count() == 0) {
+            old_pbase->close();
+            rp_map.erase(old_roomstr);
+        }
+    }
     if (rp_map.count(roomstr) != 0) {
         pbase = rp_map[roomstr];
         if (!pbase->have_listener(hdl)) {
@@ -73,7 +83,9 @@ void on_server_message(connection_hdl hdl, message_ptr msg)
             return;
         }
     } else {
-        pbase = platform_get_instance(tag, &platform_io_service);
+        std::cerr << "1111";
+        pbase = platform_get_instance(tag, platform_io_service);
+        std::cerr << "2222";
         if (pbase == nullptr) {
             server.send(hdl, std::string("platform ") + tag + std::string(" is not valid!"), opcode::TEXT);
             return;
@@ -84,6 +96,7 @@ void on_server_message(connection_hdl hdl, message_ptr msg)
             return;
         }
     }
+    std::cerr << "3333";
     auto conn_ptr = server.get_con_from_hdl(hdl);
     conn_ptr->set_close_handler(std::bind(on_server_close, roomstr, std::placeholders::_1));
     pbase->add_listener(hdl);
@@ -115,7 +128,7 @@ int main(int argc, char *argv[])
         server.clear_error_channels(websocketpp::log::alevel::all);
         server.init_asio(&server_io_service);
         server.set_reuse_addr(true);
-        server.set_message_handler(on_server_message);
+        server.set_message_handler(std::bind(on_server_message, std::string(), std::placeholders::_1, std::placeholders::_2));
         server.set_socket_init_handler([](connection_hdl, boost::asio::ip::tcp::socket & s)
                                            {
                                                boost::asio::ip::tcp::no_delay option(true);

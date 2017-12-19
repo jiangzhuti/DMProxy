@@ -14,7 +14,7 @@
 class platform_huajiao final : public platform_base
 {
 public:
-    platform_huajiao(boost::asio::io_service *ios_ptr) : platform_base(ios_ptr)
+    platform_huajiao(boost::asio::io_service& ios) : platform_base(ios)
     {
     }
     void start(std::string roomid);

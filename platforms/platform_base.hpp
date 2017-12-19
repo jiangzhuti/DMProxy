@@ -18,7 +18,8 @@ class platform_base : public std::enable_shared_from_this<platform_base>
     typedef std::function<void (std::string roomstr)> close_callback_t;
     using error_code = websocketpp::lib::error_code;
 public:
-    platform_base(boost::asio::io_service *ios_ptr) : m_close_callback(nullptr), m_ios_ptr(ios_ptr){}
+    platform_base(boost::asio::io_service &ios) : m_close_callback(nullptr), m_ios(ios)
+    {    }
     void add_listener(connection_hdl conn_hdl);
     void erase_listener(connection_hdl conn_hdl);
     bool have_listener(connection_hdl conn_hdl);
@@ -34,13 +35,13 @@ private:
 protected:
     void publish(std::string dm_msg);
     close_callback_t m_close_callback;
-    boost::asio::io_service *m_ios_ptr;
+    boost::asio::io_service &m_ios;
 
 
 };
 
 typedef std::shared_ptr<platform_base> platform_base_ptr_t;
 
-typedef std::function<platform_base_ptr_t(boost::asio::io_service*)> platform_creator_t;
+typedef std::function<platform_base_ptr_t(boost::asio::io_service&)> platform_creator_t;
 
 #endif // PLATFORM_BASE_HPP

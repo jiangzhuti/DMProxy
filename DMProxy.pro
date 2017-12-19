@@ -154,7 +154,11 @@ HEADERS += \
     platforms/huajiao/huajiao_config.hpp \
     utils/rw_lock.hpp \
     network/dmp_cs.hpp \
-    utils/log.hpp
+    utils/log.hpp \
+    platforms/YY/YY.hpp \
+    platforms/douyu/douyu.hpp \
+    platforms/douyu/stt.hpp \
+    platforms/douyu/douyu_config.hpp
 
 SOURCES += \
     json11/json11.cpp \
@@ -171,5 +175,8 @@ SOURCES += \
     platforms/platforms.cpp \
     utils/rw_lock.cpp \
     network/dmp_cs.cpp \
-    utils/log.cpp
+    utils/log.cpp \
+    platforms/YY/YY.cpp \
+    platforms/douyu/douyu.cpp \
+    platforms/douyu/stt.cpp
 
