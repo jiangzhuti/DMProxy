@@ -23,10 +23,11 @@ bool platform_huajiao::is_room_valid(std::string roomid)
 void platform_huajiao::start(std::string roomid)
 {
     conn_info.roomId = std::move(roomid);
+    m_roomid = conn_info.roomId;
     std::error_code ec;
     auto conn = client.get_connection(huajiao_config.wsServer, ec);
-    if (ec) {
-        PRINT_ERROR(ec)
+    if (CLIENT_REPORT_WHEN_ERROR(ec)) {
+        return;
     }
     conn->set_open_handler(std::bind(&platform_huajiao::on_client_open,
                                      std::dynamic_pointer_cast<platform_huajiao>(shared_from_this()),
@@ -36,8 +37,8 @@ void platform_huajiao::start(std::string roomid)
                                         std::placeholders::_1,
                                         std::placeholders::_2));
     conn->set_close_handler(std::bind(&platform_huajiao::on_client_close,
-                                       std::dynamic_pointer_cast<platform_huajiao>(shared_from_this()),
-                                       std::placeholders::_1));
+                                      std::dynamic_pointer_cast<platform_huajiao>(shared_from_this()),
+                                      std::placeholders::_1));
     client.connect(conn);
     chdl = conn->get_handle();
 }
@@ -46,9 +47,7 @@ void platform_huajiao::close()
 {
     std::error_code ec;
     client.close(chdl, websocketpp::close::status::normal, "close", ec);
-    if (ec) {
-        PRINT_ERROR(ec)
-    }
+    CLIENT_REPORT_WHEN_ERROR(ec);
 }
 
 void platform_huajiao::on_client_open(connection_hdl hdl)
@@ -56,10 +55,7 @@ void platform_huajiao::on_client_open(connection_hdl hdl)
     auto hspacket = new_handshake_packet();
     std::error_code ec;
     client.send(hdl, hspacket.data(), hspacket.size(), opcode::BINARY, ec);
-    if (ec) {
-        PRINT_ERROR(ec)
-    }
-
+    CLIENT_CLOSE_AND_REPORT_WHEN_ERROR_WS(ec, chdl);
 }
 
 void platform_huajiao::on_client_message(connection_hdl hdl, message_ptr msg)
@@ -72,18 +68,14 @@ void platform_huajiao::on_client_message(connection_hdl hdl, message_ptr msg)
     if (conn_info.handshake && !conn_info.bLogin) {
         auto loginpacket = new_login_packet();
         client.send(hdl, loginpacket.data(), loginpacket.size(), opcode::BINARY, ec);
-        if (ec) {
-            PRINT_ERROR(ec)
-        }
+        CLIENT_CLOSE_AND_REPORT_WHEN_ERROR_WS(ec, chdl);
         return;
     }
     if (conn_info.handshake && conn_info.bLogin && !conn_info.bJoin) {
         auto jcpacket = new_join_chatroom_packet();
         conn_info.bJoin = true;
         client.send(hdl, jcpacket.data(), jcpacket.size(), opcode::BINARY, ec);
-        if (ec) {
-            PRINT_ERROR(ec)
-        }
+        CLIENT_CLOSE_AND_REPORT_WHEN_ERROR_WS(ec, chdl);
         return;
     }
     if (!text_msg.empty()) {
@@ -95,7 +87,7 @@ void platform_huajiao::on_client_close(connection_hdl hdl)
 {
     (void)(hdl);
     publish("huajiao danmu connection closed!");
-    m_close_callback(std::string("huajiao_").append(conn_info.roomId));
+    m_close_callback(std::string().append(m_platform_name).append("_").append(m_roomid));
 }
 
 void platform_huajiao::new_request_message(PACKET_TYPE msgid, void* req_object, qihoo::protocol::messages::Message* message)

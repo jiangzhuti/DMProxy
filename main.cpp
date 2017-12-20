@@ -54,11 +54,13 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
         //ignored;
         return;
     }
+    std::error_code ec;
     //payload format :: "platform-tag" + "_" + "roomid"
     std::string roomstr = msg->get_payload();
     auto pos = roomstr.find_first_of('_');
     if (!(roomstr.length() > 3 && pos > 0 && pos < roomstr.length() - 1)) {
-        server.send(hdl, std::string("format error!"), opcode::TEXT);
+        server.send(hdl, std::string("format error!"), opcode::TEXT, ec);
+        SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, hdl);
         return;
     }
     std::string tag = std::string(roomstr, 0, pos);
@@ -90,12 +92,14 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
     } else {
         pbase = platform_get_instance(tag, platform_io_service);
         if (pbase == nullptr) {
-            server.send(hdl, std::string("platform ") + tag + std::string(" is not valid!"), opcode::TEXT);
+            server.send(hdl, std::string("platform ") + tag + std::string(" is not valid!"), opcode::TEXT, ec);
+            SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, hdl);
             return;
         }
         websocketpp::lib::error_code ec;
         if (!pbase->is_room_valid(roomid)) {
-            server.send(hdl, std::string("roomid invalid!"), opcode::TEXT);
+            server.send(hdl, std::string("roomid invalid!"), opcode::TEXT, ec);
+            SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, hdl);
             return;
         }
     }

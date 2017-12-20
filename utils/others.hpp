@@ -1,6 +1,7 @@
 #ifndef OTHERS_HPP
 #define OTHERS_HPP
 #include <string>
+#include <cstddef> // for size_t
 
 inline bool str_is_num(std::string str)
 {
