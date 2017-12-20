@@ -50,6 +50,7 @@ void platform_bilibili::on_http_connect(boost::system::error_code ec)
                              m_request,
                              [this, self](boost::system::error_code ec, size_t size)
                              {
+                                 (void)size;
                                  if (CLIENT_REPORT_WHEN_ERROR(ec)) {
                                      m_socket.close(ec);
                                      return;
