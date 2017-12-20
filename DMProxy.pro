@@ -158,7 +158,8 @@ HEADERS += \
     platforms/YY/YY.hpp \
     platforms/douyu/douyu.hpp \
     platforms/douyu/stt.hpp \
-    platforms/douyu/douyu_config.hpp
+    platforms/douyu/douyu_config.hpp \
+    platforms/bilibili/bilibili.hpp
 
 SOURCES += \
     json11/json11.cpp \
@@ -178,5 +179,6 @@ SOURCES += \
     utils/log.cpp \
     platforms/YY/YY.cpp \
     platforms/douyu/douyu.cpp \
-    platforms/douyu/stt.cpp
+    platforms/douyu/stt.cpp \
+    platforms/bilibili/bilibili.cpp
 
