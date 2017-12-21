@@ -36,6 +36,7 @@ void platform_YY::start()
 void platform_YY::close()
 {
     std::error_code ec;
+    m_hb_timer->cancel();
     client.close(m_hdl, websocketpp::close::status::normal, "close", ec);
     CLIENT_REPORT_WHEN_ERROR(ec);
 }
@@ -101,6 +102,7 @@ void platform_YY::on_client_close(connection_hdl hdl)
 {
     (void)hdl;
     publish("YY danmu connection closed!");
+    m_hb_timer->cancel()
     m_close_callback(std::string().append(m_platform_name).append("_").append(m_roomid));
 }
 
