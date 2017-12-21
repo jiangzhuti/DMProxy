@@ -90,14 +90,14 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
             return;
         }
     } else {
-        pbase = platform_get_instance(tag, platform_io_service);
+        pbase = platform_get_instance(tag, platform_io_service, roomid);
         if (pbase == nullptr) {
             server.send(hdl, std::string("platform ") + tag + std::string(" is not valid!"), opcode::TEXT, ec);
             SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, hdl);
             return;
         }
         websocketpp::lib::error_code ec;
-        if (!pbase->is_room_valid(roomid)) {
+        if (!pbase->is_room_valid()) {
             server.send(hdl, std::string("roomid invalid!"), opcode::TEXT, ec);
             SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, hdl);
             return;
@@ -108,7 +108,7 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
     pbase->add_listener(hdl);
     pbase->set_close_callback(on_platform_close);\
     rp_map[roomstr] = pbase;
-    pbase->start(roomid);
+    pbase->start();
 
 }
 int main(int argc, char *argv[])

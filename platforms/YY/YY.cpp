@@ -1,6 +1,11 @@
 #include "YY.hpp"
+#include "utils/others.hpp"
 
-//platform_YY::platform_YY()
-//{
+bool platform_YY::is_room_valid()
+{
+    return str_is_num(m_roomid);
+}
 
-//}
+void platform_YY::start()
+{
+}

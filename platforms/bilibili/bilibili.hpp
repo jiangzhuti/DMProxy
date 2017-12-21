@@ -10,15 +10,15 @@ class platform_bilibili final : public platform_base
 {
     using tcp = boost::asio::ip::tcp;
 public:
-    platform_bilibili(boost::asio::io_service& ios) : platform_base(ios, "bilibili"),
-                                                      m_live_api_host("live.bilibili.com"),
-                                                      m_live_api_path("/api/player?id=cid:"),
-                                                      m_resolver(ios),
-                                                      m_socket(ios)
+    platform_bilibili(boost::asio::io_service& ios, std::string roomid) : platform_base(ios, "bilibili", roomid),
+                                                                          m_live_api_host("live.bilibili.com"),
+                                                                          m_live_api_path("/api/player?id=cid:"),
+                                                                          m_resolver(ios),
+                                                                          m_socket(ios)
     {}
-    void start(std::string roomid);
+    void start();
     void close(){};
-    bool is_room_valid(std::string roomid);
+    bool is_room_valid();
 private:
     void on_http_resolve(boost::system::error_code ec, tcp::resolver::iterator iter);
     void on_http_connect(boost::system::error_code ec);

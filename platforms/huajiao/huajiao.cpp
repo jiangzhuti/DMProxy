@@ -12,18 +12,17 @@
 #include <json11/json11.hpp>
 #include "utils/log.hpp"
 
-bool platform_huajiao::is_room_valid(std::string roomid)
+bool platform_huajiao::is_room_valid()
 {
-    if (!str_is_num(roomid) || roomid.length() != 9) {
+    if (!str_is_num(m_roomid) || m_roomid.length() != 9) {
         return false;
     }
     return true;
 }
 
-void platform_huajiao::start(std::string roomid)
+void platform_huajiao::start()
 {
-    conn_info.roomId = std::move(roomid);
-    m_roomid = conn_info.roomId;
+    conn_info.roomId = m_roomid;
     std::error_code ec;
     auto conn = client.get_connection(huajiao_config.wsServer, ec);
     if (CLIENT_REPORT_WHEN_ERROR(ec)) {

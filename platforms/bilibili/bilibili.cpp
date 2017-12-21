@@ -7,14 +7,13 @@
 
 namespace property_tree = boost::property_tree;
 
-bool platform_bilibili::is_room_valid(std::string roomid)
+bool platform_bilibili::is_room_valid()
 {
     return true;
 }
 
-void platform_bilibili::start(std::string roomid)
+void platform_bilibili::start()
 {
-    m_roomid = std::move(roomid);
     std::ostream req_stream(&m_request);
 
     req_stream << "GET " << m_live_api_path << m_roomid << " HTTP/1.0\r\n";

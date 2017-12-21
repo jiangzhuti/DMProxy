@@ -14,23 +14,23 @@ class platform_douyu final : public platform_base
 {
     using tcp = boost::asio::ip::tcp;
 public:
-    platform_douyu(boost::asio::io_service& ios) : platform_base(ios, "douyu"),
-                                                   m_socket(ios),
-                                                   m_resolver(ios),
-                                                   m_blogin(false),
-                                                   m_bjoin(false),
-                                                   m_danmu_host("openbarrage.douyutv.com"),
-                                                   m_danmu_port("8601"),
-                                                   m_hb_timer(ios),
-                                                   m_strand(ios)
+    platform_douyu(boost::asio::io_service& ios, std::string roomid) : platform_base(ios, "douyu", roomid),
+                                                                       m_socket(ios),
+                                                                       m_resolver(ios),
+                                                                       m_blogin(false),
+                                                                       m_bjoin(false),
+                                                                       m_danmu_host("openbarrage.douyutv.com"),
+                                                                       m_danmu_port("8601"),
+                                                                       m_hb_timer(ios),
+                                                                       m_strand(ios)
     {
         msg_handlers["loginres"] = &platform_douyu::handle_loginres_msg;
         msg_handlers["chatmsg"] = &platform_douyu::handle_chatmsg_msg;
 
     }
-    void start(std::string roomid);
+    void start();
     void close();
-    bool is_room_valid(std::string roomid);
+    bool is_room_valid();
 private:
     enum class ACTION
     {

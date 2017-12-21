@@ -14,12 +14,12 @@
 class platform_huajiao final : public platform_base
 {
 public:
-    platform_huajiao(boost::asio::io_service& ios) : platform_base(ios, "huajiao")
+    platform_huajiao(boost::asio::io_service& ios, std::string roomid) : platform_base(ios, "huajiao", roomid)
     {
     }
-    void start(std::string roomid);
+    void start();
     void close();
-    bool is_room_valid(std::string roomid);
+    bool is_room_valid();
 private:
     void on_client_open(connection_hdl hdl);
     void on_client_close(connection_hdl hdl);

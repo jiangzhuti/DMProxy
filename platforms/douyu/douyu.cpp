@@ -3,14 +3,13 @@
 #include "stt.hpp"
 #include "utils/others.hpp"
 
-bool platform_douyu::is_room_valid(std::string roomid)
+bool platform_douyu::is_room_valid()
 {
-    return str_is_num(roomid);
+    return str_is_num(m_roomid);
 }
 
-void platform_douyu::start(std::string roomid)
+void platform_douyu::start()
 {
-    m_roomid = std::move(roomid);
     tcp::resolver::query query(m_danmu_host, m_danmu_port);
     m_resolver.async_resolve(query, std::bind(&platform_douyu::on_resolve,
                                               std::dynamic_pointer_cast<platform_douyu>(shared_from_this()),
