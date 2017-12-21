@@ -31,6 +31,9 @@ void platform_huajiao::start()
     conn->set_open_handler(std::bind(&platform_huajiao::on_client_open,
                                      std::dynamic_pointer_cast<platform_huajiao>(shared_from_this()),
                                      std::placeholders::_1));
+    conn->set_fail_handler(std::bind(&platform_huajiao::on_client_fail,
+                                     std::dynamic_pointer_cast<platform_huajiao>(shared_from_this()),
+                                     std::placeholders::_1));
     conn->set_message_handler(std::bind(&platform_huajiao::on_client_message,
                                         std::dynamic_pointer_cast<platform_huajiao>(shared_from_this()),
                                         std::placeholders::_1,
@@ -38,8 +41,7 @@ void platform_huajiao::start()
     conn->set_close_handler(std::bind(&platform_huajiao::on_client_close,
                                       std::dynamic_pointer_cast<platform_huajiao>(shared_from_this()),
                                       std::placeholders::_1));
-    client.connect(conn);
-    chdl = conn->get_handle();
+    chdl = client.connect(conn);
 }
 
 void platform_huajiao::close()
@@ -55,6 +57,12 @@ void platform_huajiao::on_client_open(connection_hdl hdl)
     std::error_code ec;
     client.send(hdl, hspacket.data(), hspacket.size(), opcode::BINARY, ec);
     CLIENT_CLOSE_AND_REPORT_WHEN_ERROR_WS(ec, chdl);
+}
+
+void platform_huajiao::on_client_fail(connection_hdl hdl)
+{
+    auto ec = client.get_con_from_hdl(hdl)->get_ec();
+    CLIENT_REPORT_WHEN_ERROR(ec);
 }
 
 void platform_huajiao::on_client_message(connection_hdl hdl, message_ptr msg)

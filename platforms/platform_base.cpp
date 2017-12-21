@@ -38,6 +38,6 @@ void platform_base::publish(std::string dm_msg)
     rlock_t rlock(m_lmtx);
     for (auto i : m_listeners) {
         server.send(i, dm_msg, opcode::TEXT, ec);
-        //handle error:
+        SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, i);
     }
 }

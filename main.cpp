@@ -146,6 +146,7 @@ int main(int argc, char *argv[])
 
         client.clear_access_channels(websocketpp::log::alevel::all);
         client.clear_error_channels(websocketpp::log::alevel::all);
+        client.set_user_agent("Mozilla/5.0 (X11; Linux x86_64; rv:57.0) Gecko/20100101 Firefox/57.0");
         client.init_asio(&platform_io_service);
 
         boost::asio::io_service::work platform_work(platform_io_service);

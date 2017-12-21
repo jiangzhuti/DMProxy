@@ -22,6 +22,7 @@ public:
     bool is_room_valid();
 private:
     void on_client_open(connection_hdl hdl);
+    void on_client_fail(connection_hdl hdl);
     void on_client_close(connection_hdl hdl);
     void on_client_message(connection_hdl hdl, message_ptr msg);
 
