@@ -380,11 +380,7 @@ void platform_bilibili::handle_data(std::vector<uint8_t> *data, boost::system::e
     std::string text = info_array[1].string_value();
     std::string uid = info_array[2].array_items()[0].string_value();
     std::string nickname = info_array[2].array_items()[1].string_value();
-    std::string result;
-    result.append("uid:").append(uid).append("\n");
-    result.append("nickname:").append(nickname).append("\n");
-    result.append("text:").append(text).append("\n");
-    publish(result);
+    publish_json(uid, nickname, text);
     delete data;
 }
 

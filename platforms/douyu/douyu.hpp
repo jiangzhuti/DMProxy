@@ -39,8 +39,7 @@ private:
         ACT_NOP,
         ACT_TERMINATE
     };
-    typedef std::tuple<std::string, std::vector<uint8_t>*, ACTION> msg_action_t;
-    typedef std::function<msg_action_t (std::shared_ptr<platform_douyu>, const char *msg, size_t size)> msg_handler_t;
+    typedef std::function<void (std::shared_ptr<platform_douyu>, const char *msg, size_t size)> msg_handler_t;
 
     void on_resolve(boost::system::error_code ec, tcp::resolver::iterator iter);
     void do_write(std::vector<uint8_t> *packet);
@@ -50,8 +49,8 @@ private:
     void handle_data(std::vector<uint8_t> *data, boost::system::error_code ec, size_t size);
     void handle_heartbeat_timer(boost::system::error_code ec);
 
-    msg_action_t handle_loginres_msg(const char *msg, size_t size);
-    msg_action_t handle_chatmsg_msg(const char *msg, size_t size);
+    void handle_loginres_msg(const char *msg, size_t size);
+    void handle_chatmsg_msg(const char *msg, size_t size);
 	void handle_danmu_msg(const char *msg, size_t size);
 	void handle_xxx_msg(const char *msg, size_t size);
     void on_connect(boost::system::error_code ec);

@@ -88,11 +88,7 @@ void platform_YY::on_client_message(connection_hdl hdl, message_ptr msg)
         std::string uid = msg_json["uid"].string_value(); //uid or yyid???
         std::string nickname = msg_json["nick"].string_value();
         std::string chat_msg = msg_json["chat_msg"].string_value();
-        std::string result;
-        result.append("uid:").append(uid).append("\n");
-        result.append("nickname:").append(nickname).append("\n");
-        result.append("text:").append(chat_msg).append("\n");
-        publish(result);
+        publish_json(uid, nickname, chat_msg);
     } else {
         //nothing to do
     }

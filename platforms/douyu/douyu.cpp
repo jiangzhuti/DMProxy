@@ -131,24 +131,7 @@ void platform_douyu::handle_data(std::vector<uint8_t> *data, boost::system::erro
         return;
     }
     auto msg_handler = msg_handlers[type];
-    std::string result;
-    std::vector<uint8_t>* packet;
-    enum ACTION action;
-    std::tie(result, packet, action) = msg_handler(std::dynamic_pointer_cast<platform_douyu>(shared_from_this()), msg_ptr, data->size());
-    switch (action) {
-    case ACTION::ACT_PUBLISH:
-        publish(result);
-        break;
-    case ACTION::ACT_DO_WRITE:
-        do_write(packet);
-        break;
-    case ACTION::ACT_NOP:
-        //nop
-        break;
-    case ACTION::ACT_TERMINATE:
-        //close
-        break;
-    }
+    msg_handler(std::dynamic_pointer_cast<platform_douyu>(shared_from_this()), msg_ptr, data->size());
     delete data;
 }
 
@@ -165,7 +148,7 @@ void platform_douyu::handle_heartbeat_timer(boost::system::error_code ec)
         std::placeholders::_1));
 }
 
-auto platform_douyu::handle_loginres_msg(const char *msg, size_t size) -> decltype (platform_douyu::handle_loginres_msg(nullptr, 1))
+void platform_douyu::handle_loginres_msg(const char *msg, size_t size)
 {
     (void)size;
     auto self = shared_from_this();
@@ -178,14 +161,14 @@ auto platform_douyu::handle_loginres_msg(const char *msg, size_t size) -> declty
                                         std::dynamic_pointer_cast<platform_douyu>(shared_from_this()),
                                         std::placeholders::_1));
         packet = new_joingroup_packet();
-        return std::make_tuple(result, packet, ACTION::ACT_DO_WRITE);
+        do_write(packet);
     } else {
         std::cerr << "error at func:" << __func__ << ", line:" << __LINE__ << std::endl;
         //impossible
     }
 }
 
-auto platform_douyu::handle_chatmsg_msg(const char *msg, size_t size) -> decltype (platform_douyu::handle_chatmsg_msg(nullptr, 1))
+void platform_douyu::handle_chatmsg_msg(const char *msg, size_t size)
 {
     (void)size;
     STT_t stt = parse_stt(msg);
@@ -196,7 +179,7 @@ auto platform_douyu::handle_chatmsg_msg(const char *msg, size_t size) -> decltyp
         result.append("uid:").append(stt["uid"]).append("\n");
         result.append("nickname:").append(stt["nn"]).append("\n");
         result.append("text:").append(stt["txt"]).append("\n");
-        return std::make_tuple(result, packet, ACTION::ACT_PUBLISH);
+        publish_json(stt["uid"], stt["nn"], stt["txt"]);
     } else {
         std::cerr << "error at func:" << __func__ << ", line:" << __LINE__ << std::endl;
         //impossible

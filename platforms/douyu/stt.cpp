@@ -23,13 +23,6 @@ STT_t parse_stt(const char *msg)
     }
     return stt;
 }
-void print_hex(const uint8_t* str, size_t len)
-{
-    std::cout << "packet hex:";
-    for (size_t i = 0; i < len; ++i)
-        printf("%02X", str[i]);
-    printf("\n");
-}
 std::vector<uint8_t>* make_stt(const std::initializer_list<std::pair<std::string, std::string>>& il)
 {
     std::string result;
@@ -50,6 +43,5 @@ std::vector<uint8_t>* make_stt(const std::initializer_list<std::pair<std::string
     *(uint8_t *)(packet_buf + 3) = 0;
     packet_buf += 4;
     std::strcpy((char *)packet_buf, result.data());
-    print_hex(packet->data(), packet->size());
     return packet;
 }

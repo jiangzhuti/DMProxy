@@ -1,4 +1,6 @@
 #include "platform_base.hpp"
+#include <json11/json11.hpp>
+#include "utils/base64.hpp"
 
 platform_base::~platform_base()
 {}
@@ -38,6 +40,19 @@ void platform_base::publish(std::string dm_msg)
     rlock_t rlock(m_lmtx);
     for (auto i : m_listeners) {
         server.send(i, dm_msg, opcode::TEXT, ec);
-        SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, i);
+        if (SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, i)) {
+            std::cerr << "\n" << dm_msg << std::endl;
+        }
     }
+}
+
+void platform_base::publish_json(std::string uid, std::string nickname, std::string text)
+{
+    //use base64 to avoid 'payload contained invalid data'
+    auto msg_json = json11::Json({
+                                     {"uid", uid},
+                                     {"nickname", base64_encode((unsigned char *)nickname.data(), nickname.length())},
+                                     {"text", base64_encode((unsigned char *)text.data(), text.length())}
+                                 });
+    publish(msg_json.dump());
 }

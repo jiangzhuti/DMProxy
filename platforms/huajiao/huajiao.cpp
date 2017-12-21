@@ -70,7 +70,7 @@ void platform_huajiao::on_client_message(connection_hdl hdl, message_ptr msg)
     if (msg->get_opcode() != opcode::BINARY) {
         return;
     }
-    auto text_msg = handle_binary_message(msg->get_payload().data(), msg->get_payload().size());
+    handle_binary_message(msg->get_payload().data(), msg->get_payload().size());
     std::error_code ec;
     if (conn_info.handshake && !conn_info.bLogin) {
         auto loginpacket = new_login_packet();
@@ -84,9 +84,6 @@ void platform_huajiao::on_client_message(connection_hdl hdl, message_ptr msg)
         client.send(hdl, jcpacket.data(), jcpacket.size(), opcode::BINARY, ec);
         CLIENT_CLOSE_AND_REPORT_WHEN_ERROR_WS(ec, chdl);
         return;
-    }
-    if (!text_msg.empty()) {
-        publish(text_msg);
     }
 }
 
@@ -268,23 +265,21 @@ std::vector<uint8_t> platform_huajiao::new_join_chatroom_packet()
     return result;
 }
 
-std::string platform_huajiao::handle_binary_message(const void *data, size_t size)
+void platform_huajiao::handle_binary_message(const void *data, size_t size)
 {
     if (conn_info.handshake) {
         if (conn_info.bLogin) {
-            return parse_message_packet(data, size);
+            parse_message_packet(data, size);
         } else {
             parse_login_response_packet(data, size);
         }
     } else {
         parse_handshake_packet(data, size);
     }
-    return std::string();
 }
 
-std::string platform_huajiao::parse_message_packet(const void *data, size_t size)
+void platform_huajiao::parse_message_packet(const void *data, size_t size)
 {
-    std::string dm_msg;
     std::stringstream sstream;
     if (size == 4 && (*(uint32_t*)data) == 0) {
         std::cout << "==================HeartbeatPack=================="
@@ -303,21 +298,18 @@ std::string platform_huajiao::parse_message_packet(const void *data, size_t size
             parse_service_resp(message);
             break;
         case NewMessageNotify:
-            dm_msg.append(parse_new_message_notify(message));
+            parse_new_message_notify(message);
             break;
         default:
-            sstream << "[Unknown unpack] : msgid = " << message.msgid() << std::endl;
-            dm_msg.append(sstream.str());
+            std::cerr << "[Unknown unpack] : msgid = " << message.msgid() << std::endl;
             message.PrintDebugString();
             break;
         }
     }
-    return dm_msg;
 }
 
-std::string platform_huajiao::parse_new_message_notify(const qihoo::protocol::messages::Message& message)
+void platform_huajiao::parse_new_message_notify(const qihoo::protocol::messages::Message& message)
 {
-    std::stringstream sstream;
     auto notify = message.notify();
 
     qihoo::protocol::chatroom::ChatRoomPacket newmsgnotify;
@@ -343,9 +335,9 @@ std::string platform_huajiao::parse_new_message_notify(const qihoo::protocol::me
 //            sstream << "msgtype          = " << msgtype << std::endl;
 
             if (msgtype == 0 && chatroom_newmsg.memcount()) {
-                sstream << parse_json_message(chatroom_newmsg.msgcontent());
+                parse_json_message(chatroom_newmsg.msgcontent());
             } else {
-                sstream << "[Unknow Msgtype] into = " << chatroom_newmsg.DebugString() << std::endl;
+                std::cerr << "[Unknow Msgtype] into = " << chatroom_newmsg.DebugString() << std::endl;
             }
         } else if (payloadtype == MemberJoinNotify) {
             /* NOOOOOOOOOOP */
@@ -385,9 +377,9 @@ std::string platform_huajiao::parse_new_message_notify(const qihoo::protocol::me
 //                      << std::endl;
 
             for (int i = 0; i < user_data.multinotify().size(); i++) {
-                int type = user_data.multinotify(i).type();
-                int regmemcount = user_data.multinotify(i).regmemcount();
-                int memcount = user_data.multinotify(i).memcount();
+                //int type = user_data.multinotify(i).type();
+                //int regmemcount = user_data.multinotify(i).regmemcount();
+                //int memcount = user_data.multinotify(i).memcount();
                 std::string data = user_data.multinotify(i).data();
 
 //                sstream << "type             = " << type << std::endl;
@@ -405,13 +397,13 @@ std::string platform_huajiao::parse_new_message_notify(const qihoo::protocol::me
                     newMsg.ParseFromArray(unpack.data(), unpack.size());
                     crUser = newMsg.sender();
 
-                    std::string roomid = newMsg.roomid();
-                    int32_t msgType = newMsg.msgtype();
-                    uint32_t msgId = newMsg.msgid();
+                    //std::string roomid = newMsg.roomid();
+                    //int32_t msgType = newMsg.msgtype();
+                    //uint32_t msgId = newMsg.msgid();
                     std::string msgcontent = newMsg.msgcontent();
-                    std::string userid = crUser.userid();
-                    std::string name = crUser.name();
-                    std::string userData = crUser.userdata();
+                    //std::string userid = crUser.userid();
+                    //std::string name = crUser.name();
+                    //std::string userData = crUser.userdata();
 
 //                    sstream << "roomid           = " << roomid << std::endl;
 //                    sstream << "userid           = " << userid << std::endl;
@@ -421,16 +413,16 @@ std::string platform_huajiao::parse_new_message_notify(const qihoo::protocol::me
 //                    //std::cout << WHITE << "	msgContent      = " << msgcontent << std::endl;
 //                    sstream << "userData         = " << userData << std::endl;
 
-                    sstream << parse_json_message(msgcontent);
+                    parse_json_message(msgcontent);
                 }
             }
         } else {
-            sstream << "[Unknow PayloadType] into = " << user_data.DebugString() << std::endl;
+            std::cerr << "[Unknow PayloadType] into = " << user_data.DebugString() << std::endl;
         }
     } else {
-        sstream << "[Unpacket Error] debug = " << notify.DebugString() << std::endl;
+        std::cerr << "[Unpacket Error] debug = " << notify.DebugString() << std::endl;
     }
-    return sstream.str();
+
 }
 
 void platform_huajiao::parse_service_resp(const qihoo::protocol::messages::Message& message)
@@ -555,9 +547,12 @@ void platform_huajiao::parse_login_response_packet(const void *data, size_t size
         sstream << "[Unpacket Error] response msgid exception,msgid = " << message.msgid() << std::endl;
     }
 }
-std::string platform_huajiao::parse_json_message(const std::string& message)
+void platform_huajiao::parse_json_message(const std::string& message)
 {
     std::stringstream sstream;
+    std::string uid;
+    std::string nickname;
+    std::string text;
     std::string err;
     auto json = json11::Json::parse(message, err);
     if (err.empty()) {
@@ -569,30 +564,25 @@ std::string platform_huajiao::parse_json_message(const std::string& message)
 //        sstream << "type             = " << type << std::endl;
 
         if (type == 16) {
-            int liveid = json["extends"]["liveid"].int_value();
+            //int liveid = json["extends"]["liveid"].int_value();
             double userid = json["extends"]["userid"].number_value();
             sstream << "uid:"
                       << std::setiosflags(std::ios::fixed)
                       << std::setprecision(0)
-                      << userid
-                      << std::endl;
+                      << userid;
+            uid = sstream.str();
         } else {
-            std::string liveid = json["extends"]["liveid"].string_value();
-            std::string userid = json["extends"]["userid"].string_value();
-            sstream << "uid:" << userid << std::endl;
+            //std::string liveid = json["extends"]["liveid"].string_value();
+            uid = json["extends"]["userid"].string_value();
         }
-
-        std::string nickname = json["extends"]["nickname"].string_value();
-        int level = json["extends"]["level"].int_value();
-        int watches = json["extends"]["watches"].int_value();
-        std::string distance = json["extends"]["distance"].string_value();
-        int exp = json["extends"]["exp"].int_value();
-        std::string credentials = json["verifiedinfo"]["credentials"].string_value();
-        std::string realname = json["verifiedinfo"]["realname"].string_value();
-        std::string avatar = json["extends"]["avatar"].string_value();
-
-        sstream << "nickname:" << nickname << std::endl;
-        sstream << "text:" << text << std::endl;
+        nickname = json["extends"]["nickname"].string_value();
+        //int level = json["extends"]["level"].int_value();
+        //int watches = json["extends"]["watches"].int_value();
+        //std::string distance = json["extends"]["distance"].string_value();
+        //int exp = json["extends"]["exp"].int_value();
+        //std::string credentials = json["verifiedinfo"]["credentials"].string_value();
+        //std::string realname = json["verifiedinfo"]["realname"].string_value();
+        //std::string avatar = json["extends"]["avatar"].string_value();
+        publish_json(uid, nickname, text);
     }
-    return sstream.str();
 }

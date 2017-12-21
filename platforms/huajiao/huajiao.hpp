@@ -50,14 +50,14 @@ private:
     std::vector<uint8_t> new_login_packet();
     void parse_login_response_packet(const void *data, size_t size);
     std::vector<uint8_t> new_join_chatroom_packet();
-    std::string handle_binary_message(const void *data, size_t size);
-    std::string parse_message_packet(const void *data, size_t size);
-    std::string parse_new_message_notify(const qihoo::protocol::messages::Message& message);
+    void handle_binary_message(const void *data, size_t size);
+    void parse_message_packet(const void *data, size_t size);
+    void parse_new_message_notify(const qihoo::protocol::messages::Message& message);
     void parse_service_resp(const qihoo::protocol::messages::Message& message);
     void parse_address_book_message(const void* data, uint32_t size, qihoo::protocol::messages::Message* message);
     void parse_chat_room_message(const std::string& data, qihoo::protocol::chatroom::ChatRoomPacket* message);
     void parse_chat_room_new_message(const void* data, uint32_t size, qihoo::protocol::chatroom::ChatRoomNewMsg* message);
-    std::string parse_json_message(const std::string& message);
+    void parse_json_message(const std::string& message);
     huajiao_conn_info_t conn_info;
     //正常并不会出现数据争用的情况
     //因此这个锁并没有用到

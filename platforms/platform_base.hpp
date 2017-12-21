@@ -37,6 +37,7 @@ private:
     rw_mutex_t m_lmtx;
 protected:
     void publish(std::string dm_msg);
+    void publish_json(std::string uid, std::string nickname, std::string text);
     close_callback_t m_close_callback;
     boost::asio::io_service &m_ios;
     const std::string m_platform_name;
