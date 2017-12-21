@@ -148,7 +148,7 @@ void platform_douyu::handle_data(std::vector<uint8_t> *data, boost::system::erro
     case ACTION::ACT_TERMINATE:
         //close
         break;
-        }
+    }
     delete data;
 }
 
