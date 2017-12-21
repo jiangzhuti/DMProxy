@@ -23,7 +23,8 @@ extern dmp_client client;
         if (ec) { \
             std::cerr << __func__ << ":" << __LINE__ << " error occured because: " \
                       << ec.message() << ", server connection closed." << std::endl; \
-            server.close(hdl, websocketpp::close::status::normal, std::string("connection closed because:").append(ec.message())); \
+            std::error_code tmp_ec; \
+            server.close(hdl, websocketpp::close::status::normal, std::string("connection closed because:").append(ec.message()), tmp_ec); \
         } \
         ec; \
     })
@@ -45,7 +46,8 @@ extern dmp_client client;
     ({ \
         CLIENT_REPORT_WHEN_ERROR(ec); \
         if (ec) { \
-            client.close(hdl, websocketpp::close::status::normal, "close"); \
+            std::error_code tmp_ec; \
+            client.close(hdl, websocketpp::close::status::normal, "close", tmp_ec); \
         } \
         ec;\
     })

@@ -102,7 +102,7 @@ void platform_YY::on_client_close(connection_hdl hdl)
 {
     (void)hdl;
     publish("YY danmu connection closed!");
-    m_hb_timer->cancel()
+    m_hb_timer->cancel();
     m_close_callback(std::string().append(m_platform_name).append("_").append(m_roomid));
 }
 
