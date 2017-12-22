@@ -68,7 +68,7 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
 
     platform_base_ptr_t pbase;
     wlock_t rp_wlock(rp_rw_mtx);
-    if (old_roomstr == roomstr)
+    if (old_roomstr == roomstr && rp_map.count(old_roomstr) != 0)
         return;
     auto s_conn = server.get_con_from_hdl(hdl);
     s_conn->set_message_handler(std::bind(on_server_message,
