@@ -7,6 +7,7 @@ LIBS += -lboost_thread -lboost_system -lboost_program_options -lpthread -lssl -l
 LIBS += ../DMProxy/lib/libprotobuf.a
 
 INCLUDEPATH += ./include
+INCLUDEPATH += ./
 
 DISTFILES += \
     lib/libprotobuf.a \

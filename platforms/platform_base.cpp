@@ -1,5 +1,5 @@
 #include "platform_base.hpp"
-#include <json11/json11.hpp>
+#include "json11/json11.hpp"
 #include "utils/base64.hpp"
 
 platform_base::~platform_base()
@@ -37,12 +37,17 @@ void platform_base::set_close_callback(close_callback_t cb)
 void platform_base::publish(std::string dm_msg)
 {
     error_code ec;
+    std::vector<connection_hdl> to_be_deleted;
     rlock_t rlock(m_lmtx);
     for (auto i : m_listeners) {
         server.send(i, dm_msg, opcode::TEXT, ec);
         if (SERVER_CLOSE_AND_REPORT_WHEN_ERROR(ec, i)) {
             std::cerr << "\n" << dm_msg << std::endl;
+            to_be_deleted.push_back(i);
         }
+    }
+    for (auto i : to_be_deleted) {
+        m_listeners.erase(i);
     }
 }
 
