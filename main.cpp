@@ -6,6 +6,7 @@
 #include <tuple>
 #include <boost/program_options.hpp>
 #include <boost/asio.hpp>
+#include <boost/algorithm/string.hpp>
 #include "network/dmp_cs.hpp"
 #include "platforms/platforms.hpp"
 #include "utils/others.hpp"
@@ -57,6 +58,7 @@ void on_server_message(std::string old_roomstr, connection_hdl hdl, message_ptr 
     std::error_code ec;
     //payload format :: "platform-tag" + "_" + "roomid"
     std::string roomstr = msg->get_payload();
+    boost::trim(roomstr);
     auto pos = roomstr.find_first_of('_');
     if (!(roomstr.length() > 3 && pos > 0 && pos < roomstr.length() - 1)) {
         server.send(hdl, std::string("format error!"), opcode::TEXT, ec);
