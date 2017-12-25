@@ -38,7 +38,7 @@ DISTNAME      = DMProxy1.0.0
 DISTDIR = /tmp/.tmp/DMProxy1.0.0
 LINK          = g++
 LFLAGS        = -Wl,-O1 -Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now
-LIBS          = $(SUBLIBS) -lboost_thread -lboost_system -lboost_program_options -lpthread -lssl -lcrypto -lz ../DMProxy/lib/libprotobuf.a 
+LIBS          = -L. $(SUBLIBS) -lboost_thread -lboost_system -lboost_program_options -lpthread -lssl -lcrypto -lz -lprotobuf
 AR            = ar cqs
 RANLIB        = 
 SED           = sed
@@ -104,7 +104,7 @@ DIST          = lib/libprotobuf.a \
 		include/google/protobuf/struct.proto \
 		include/google/protobuf/timestamp.proto \
 		include/google/protobuf/type.proto \
-		include/google/protobuf/wrappers.proto \ 
+		include/google/protobuf/wrappers.proto \
 		DMProxy.pro include/google/protobuf/compiler/cpp/cpp_generator.h \
 		include/google/protobuf/compiler/csharp/csharp_generator.h \
 		include/google/protobuf/compiler/csharp/csharp_names.h \
@@ -259,7 +259,6 @@ DIST          = lib/libprotobuf.a \
 		platforms/douyu/stt.cpp \
 		platforms/bilibili/bilibili.cpp \
 		utils/base64.cpp
-QMAKE_TARGET  = DMProxy
 DESTDIR       = 
 TARGET        = DMProxy
 
@@ -270,13 +269,6 @@ first: all
 $(TARGET):  $(OBJECTS)  
 	$(LINK) $(LFLAGS) -o $(TARGET) $(OBJECTS) $(OBJCOMP) $(LIBS)
 
-Makefile: DMProxy.pro 
-	$(QMAKE) -o Makefile DMProxy.pro
-DMProxy.pro:
-qmake: FORCE
-	@$(QMAKE) -o Makefile DMProxy.pro
-
-qmake_all: FORCE
 
 
 all: Makefile $(TARGET)

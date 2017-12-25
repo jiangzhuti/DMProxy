@@ -1,7 +1,7 @@
 #include <vector>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/tokenizer.hpp>
-#include <boost/utility/string_view.hpp>
+#include <boost/utility/string_ref.hpp>
 #include <boost/utility.hpp>
 #include "stt.hpp"
 #include "douyu_config.hpp"
@@ -9,7 +9,7 @@
 
 STT_t parse_stt(const char *msg)
 {
-    boost::string_view msg_view(msg);
+    boost::string_ref msg_view(msg);
     boost::char_separator<char> sep_array("/");
     boost::tokenizer<boost::char_separator<char>> msg_tok(msg_view, sep_array);
 
