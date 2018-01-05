@@ -92,10 +92,10 @@ void platform_YY::on_client_message(connection_hdl hdl, message_ptr msg)
         std::string uid = std::to_string(static_cast<uint64_t>(msg_json["uid"].number_value())); //uid or yyid???
         std::string nickname = msg_json["nick"].string_value();
         std::string chat_msg = msg_json["chat_msg"].string_value();
-        property_tree::ptree tree;
+        boost::property_tree::ptree tree;
         std::istringstream iss_chat(chat_msg);
         try {
-            property_tree::read_xml(iss_chat, tree);
+            boost::property_tree::read_xml(iss_chat, tree);
             auto msg_tree = tree.get_child("msg");
             auto txt_tree = msg_tree.get_child("txt");
             std::string msg_data = tree.get<std::string>("<xmlattr>.data");
