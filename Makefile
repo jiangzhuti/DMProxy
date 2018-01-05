@@ -13,8 +13,8 @@ MAKEFILE      = Makefile
 CC            = gcc
 CXX           = g++
 DEFINES       = 
-CFLAGS        = -pipe -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt -Wall -W -fPIC $(DEFINES)
-CXXFLAGS      = -pipe -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt -std=gnu++11 -Wall -W -fPIC $(DEFINES)
+CFLAGS        = -pipe -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong  -Wall -W -fPIC $(DEFINES)
+CXXFLAGS      = -pipe -O2 -march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong  -std=gnu++11 -Wall -W -fPIC $(DEFINES)
 INCPATH       = -I. -Iinclude -I. -I/usr/lib/qt/mkspecs/linux-g++
 QMAKE         = /usr/bin/qmake
 DEL_FILE      = rm -f
@@ -38,7 +38,7 @@ DISTNAME      = DMProxy1.0.0
 DISTDIR = /tmp/.tmp/DMProxy1.0.0
 LINK          = g++
 LFLAGS        = -Wl,-O1 -Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now
-LIBS          = -L. $(SUBLIBS) -lboost_thread -lboost_system -lboost_program_options -lpthread -lssl -lcrypto -lz -lprotobuf
+LIBS          = -L./lib -lboost_thread -lboost_system -lboost_program_options -lpthread -lssl -lcrypto -lz -lprotobuf
 AR            = ar cqs
 RANLIB        = 
 SED           = sed
