@@ -15,6 +15,7 @@
 //use 'static' to prevent clang for generating -Wmissing-variable-declarations warnings
 static int server_threads, client_threads;
 static uint16_t server_port;
+static std::string server_host;
 static std::string uri;
 
 static boost::asio::io_service server_io_service;
@@ -118,6 +119,7 @@ int main(int argc, char *argv[])
     po::options_description desc("Allowed Options:");
     desc.add_options()
             ("help", "Produce help message")
+            ("server-host", po::value<std::string>(&server_host)->default_value("localhost"), "Set the DMProxy server port, default to 9001")
             ("server-port", po::value<uint16_t>(&server_port)->default_value(9001), "Set the DMProxy server port, default to 9001")
             ("server-threads", po::value<int>(&server_threads)->default_value(3), "Set the number of the DMProxy server io_service threads, defalut to 3")
             ("client-threads", po::value<int>(&client_threads)->default_value(3), "Set the number of the DMProxy client io_service threads, defalut to 3");
@@ -143,7 +145,7 @@ int main(int argc, char *argv[])
                                                s.set_option(option);
                                            });
         server.set_listen_backlog(8192);
-        server.listen(server_port);
+        server.listen(server_host, std::to_string(server_port));
         server.start_accept();
 
         client.clear_access_channels(websocketpp::log::alevel::all);
