@@ -9,6 +9,7 @@
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <sstream>
+#include <exception>
 #include "json11/json11.hpp"
 
 namespace property_tree = boost::property_tree;
@@ -156,19 +157,26 @@ void platform_bilibili::parse_live_msg()
 
     property_tree::ptree tree;
     std::istringstream iss_live_msg(m_live_msg);
-    property_tree::read_xml(iss_live_msg, tree);
-    std::string state = tree.get<std::string>("state");
-    if (state != "LIVE") {
-        ec.assign(boost::system::errc::bad_message, boost::system::system_category());
-        CLIENT_REPORT_WHEN_ERROR(ec);
+    try {
+        property_tree::read_xml(iss_live_msg, tree);
+        std::string state = tree.get<std::string>("state");
+        if (state != "LIVE") {
+            ec.assign(boost::system::errc::bad_message, boost::system::system_category());
+            CLIENT_REPORT_WHEN_ERROR(ec);
+            m_socket.close(ec);
+            return;
+        }
+        m_dm_server = tree.get<std::string>("server");
+        //what dm_server_list means??
+        m_dm_tcp_port = tree.get<std::string>("dm_port");
+        //m_dm_ws_port = tree.get<std::string>("dm_ws_port");
         m_socket.close(ec);
-        return;
+    } catch (std::exception &e) {
+            ec.assign(boost::system::errc::bad_message, boost::system::system_category());
+            CLIENT_REPORT_WHEN_ERROR(ec);
+            m_socket.close(ec);
+            return;
     }
-    m_dm_server = tree.get<std::string>("server");
-    //what dm_server_list means??
-    m_dm_tcp_port = tree.get<std::string>("dm_port");
-    m_dm_ws_port = tree.get<std::string>("dm_ws_port");
-    m_socket.close(ec);
     tcp::resolver::query query(m_dm_server, m_dm_tcp_port);
     m_resolver.async_resolve(query, std::bind(&platform_bilibili::on_tcp_resolve,
                                               std::dynamic_pointer_cast<platform_bilibili>(shared_from_this()),
@@ -378,7 +386,13 @@ void platform_bilibili::handle_data(std::vector<uint8_t> *data, boost::system::e
     }
     auto info_array = msg_json["info"].array_items();
     std::string text = info_array[1].string_value();
-    std::string uid = info_array[2].array_items()[0].string_value();
+    std::string uid;
+    if (info_array[2].array_items()[0].is_number()) {
+        double uid_value = info_array[2].array_items()[0].number_value();
+        uid = std::to_string(static_cast<uint64_t>uid_value);
+    } else if (info_array[2].array_items()[0].is_string()) {
+        uid = info_array[2].array_items()[0].string_value();
+    }
     std::string nickname = info_array[2].array_items()[1].string_value();
     publish_json(uid, nickname, text);
     delete data;
