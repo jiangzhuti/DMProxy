@@ -1,7 +1,11 @@
 #include "YY.hpp"
 #include "utils/others.hpp"
 #include "json11/json11.hpp"
+#include <boost/property_tree/xml_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
 #include <ctime>
+#include <exception>
+#include <sstream>
 
 bool platform_YY::is_room_valid()
 {
@@ -85,9 +89,20 @@ void platform_YY::on_client_message(connection_hdl hdl, message_ptr msg)
     } else if (resp == "join") {
         //nothing to do
     } else if (__builtin_expect(resp == "chat", true)) {
-        std::string uid = msg_json["uid"].string_value(); //uid or yyid???
+        std::string uid = std::to_string(static_cast<uint64_t>(msg_json["uid"].number_value())); //uid or yyid???
         std::string nickname = msg_json["nick"].string_value();
         std::string chat_msg = msg_json["chat_msg"].string_value();
+        property_tree::ptree tree;
+        std::istringstream iss_chat(chat_msg);
+        try {
+            property_tree::read_xml(iss_chat, tree);
+            auto msg_tree = tree.get_child("msg");
+            auto txt_tree = msg_tree.get_child("txt");
+            std::string msg_data = tree.get<std::string>("<xmlattr>.data");
+            std::cout << msg_data << std::endl;
+        } catch (std::exception &e) {
+            return;
+        }
         publish_json(uid, nickname, chat_msg);
     } else {
         //nothing to do
