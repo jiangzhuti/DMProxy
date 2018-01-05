@@ -99,7 +99,6 @@ void platform_YY::on_client_message(connection_hdl hdl, message_ptr msg)
             auto msg_tree = tree.get_child("msg");
             auto txt_tree = msg_tree.get_child("txt");
             std::string msg_data = txt_tree.get<std::string>("<xmlattr>.data");
-            std::cout << msg_data << std::endl;
         } catch (std::exception &e) {
             return;
         }
