@@ -389,7 +389,7 @@ void platform_bilibili::handle_data(std::vector<uint8_t> *data, boost::system::e
     std::string uid;
     if (info_array[2].array_items()[0].is_number()) {
         double uid_value = info_array[2].array_items()[0].number_value();
-        uid = std::to_string(static_cast<uint64_t>uid_value);
+        uid = std::to_string(static_cast<uint64_t>(uid_value));
     } else if (info_array[2].array_items()[0].is_string()) {
         uid = info_array[2].array_items()[0].string_value();
     }
