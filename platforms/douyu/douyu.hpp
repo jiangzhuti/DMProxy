@@ -21,8 +21,7 @@ public:
                                                                        m_bjoin(false),
                                                                        m_danmu_host("openbarrage.douyutv.com"),
                                                                        m_danmu_port("8601"),
-                                                                       m_hb_timer(ios),
-                                                                       m_strand(ios)
+                                                                       m_hb_timer(ios)
     {
         msg_handlers["loginres"] = &platform_douyu::handle_loginres_msg;
         msg_handlers["chatmsg"] = &platform_douyu::handle_chatmsg_msg;
@@ -66,7 +65,6 @@ private:
     std::string m_danmu_host;
     std::string m_danmu_port;
     boost::asio::deadline_timer m_hb_timer;
-    boost::asio::strand m_strand;
 
     std::map<std::string, msg_handler_t> msg_handlers;
 };

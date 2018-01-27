@@ -15,7 +15,7 @@ STT_t parse_stt(const char *msg)
 
     STT_t stt;
     for (auto i : msg_tok) {
-        auto pos = i.find_first_of("@=");
+        auto pos = i.find("@=");
         if (pos == std::string::npos) {
             continue;
         }
