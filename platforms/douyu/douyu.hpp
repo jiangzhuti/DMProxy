@@ -31,13 +31,6 @@ public:
     void close();
     bool is_room_valid();
 private:
-    enum class ACTION
-    {
-        ACT_DO_WRITE,
-        ACT_PUBLISH,
-        ACT_NOP,
-        ACT_TERMINATE
-    };
     typedef std::function<void (std::shared_ptr<platform_douyu>, const char *msg, size_t size)> msg_handler_t;
 
     void on_resolve(boost::system::error_code ec, tcp::resolver::iterator iter);
@@ -50,8 +43,8 @@ private:
 
     void handle_loginres_msg(const char *msg, size_t size);
     void handle_chatmsg_msg(const char *msg, size_t size);
-	void handle_danmu_msg(const char *msg, size_t size);
-	void handle_xxx_msg(const char *msg, size_t size);
+    void handle_danmu_msg(const char *msg, size_t size);
+    void handle_xxx_msg(const char *msg, size_t size);
     void on_connect(boost::system::error_code ec);
     std::vector<uint8_t>* new_login_packet();
     std::vector<uint8_t>* new_joingroup_packet();
